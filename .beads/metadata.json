@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "golink",
+  "project_id": "faea1cd5-ce17-47e6-9eb3-1f823def1304"
+}
