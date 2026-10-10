@@ -8,3 +8,6 @@
 
 # Build output
 build/
+
+# Dev postgres data dir
+.dev/

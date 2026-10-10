@@ -1,6 +1,22 @@
 #:schema https://pitchfork.jdx.dev/schema.json
 
-[daemons.sever]
+# Labels: `postgres` (dev database), `golink` (server). All processes come
+# from this file; `pitchfork list` shows them after `mise run dev`.
+
+[daemons.postgres]
+# Dev-only postgres. Data lives in .dev/pg/ (gitignored); initdb runs on
+# first start only. Binding to loopback keeps it off the network.
+run = """
+if [ ! -f .dev/pg/PG_VERSION ]; then
+  initdb -D .dev/pg -U postgres --auth=trust
+fi
+exec postgres -D .dev/pg -p $PORT -c listen_addresses=127.0.0.1
+"""
+# Local dev convention: 5432, bumped one by one if taken.
+port = { expect = [5432], bump = 10 }
+ready_output = "ready to accept connections"
+
+[daemons.golink]
 # Rebuild then run; exec makes the tracked PID the server itself so stop
 # signals reach it and the 10s graceful drain works.
 run = "mise x -- go build -o ./build/golink . && exec ./build/golink start --port $PORT"
