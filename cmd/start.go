@@ -39,7 +39,10 @@ func startCmd() *cli.Command {
 			}
 			clog.FromContext(ctx).Info("golink listening", "addr", ln.Addr().String())
 
-			srv := &http.Server{Handler: server.New()}
+			// ctx here is the app-level context from main: it carries the base
+			// clog logger but nothing the shutdown path cancels (the signal
+			// context is bound later), so threading it into requests is safe.
+			srv := &http.Server{Handler: server.ContextProvider(ctx)(server.New())}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()
 
