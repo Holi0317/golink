@@ -9,15 +9,13 @@ import (
 	"github.com/chainguard-dev/clog"
 )
 
-// A handler receiving a request through ContextProvider must see a logger in
-// its request context, carried over from the base context the middleware was
-// built with.
-func TestContextProviderInjectsLogger(t *testing.T) {
+// A handler receiving a request through ClogProvider must see a logger in
+// its request context.
+func TestClogProviderInjectsLogger(t *testing.T) {
 	baseLogger := clog.New(clog.NewHandler(nil))
-	baseCtx := clog.WithLogger(context.Background(), baseLogger)
 
 	seen := make(chan *clog.Logger, 1)
-	h := ContextProvider(baseCtx)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := ClogProvider(baseLogger)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		seen <- clog.FromContext(r.Context())
 	}))
 
@@ -31,13 +29,12 @@ func TestContextProviderInjectsLogger(t *testing.T) {
 // The middleware must not replace the request context wholesale: it would
 // sever client-disconnect cancellation that handlers rely on. Pre-cancel a
 // request context and require the wrapped handler to still observe Done.
-func TestContextProviderPreservesRequestCancellation(t *testing.T) {
-	baseCtx := context.Background()
+func TestClogProviderPreservesRequestCancellation(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	reqCtx, cancel := context.WithCancel(req.Context())
 	cancel() // deliver an already-canceled request context
 
-	h := ContextProvider(baseCtx)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := ClogProvider(clog.New(clog.NewHandler(nil)))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
 		case <-r.Context().Done():
 		default:
