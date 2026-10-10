@@ -39,10 +39,11 @@ func startCmd() *cli.Command {
 			}
 			clog.FromContext(ctx).Info("golink listening", "addr", ln.Addr().String())
 
-			// The base logger from main, threaded into requests. Derive it
-			// from ctx (which carries nothing but the logger at this point)
-			// before the signal context rebinds it.
-			srv := &http.Server{Handler: server.ClogProvider(clog.FromContext(ctx))(server.New())}
+			// clog.FromContext(ctx) is the base logger from main; threading it
+			// into requests via middleware. Derive before the signal bind.
+			srv := &http.Server{Handler: server.New(
+				server.ClogProvider(clog.FromContext(ctx)),
+			)}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()
 

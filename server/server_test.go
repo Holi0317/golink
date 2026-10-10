@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 )
 
@@ -31,5 +32,26 @@ func TestUnsupportedMethodsRejected(t *testing.T) {
 				t.Errorf("%s /: got status %d, want %d", method, rec.Code, http.StatusMethodNotAllowed)
 			}
 		})
+	}
+}
+
+// New composes the middleware in the given order: the first argument wraps
+// everything and processes requests first, before handlers below it.
+func TestNewComposesMiddlewareInOrder(t *testing.T) {
+	var order []string
+	rec := func(name string) Middleware {
+		return func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				order = append(order, name)
+				next.ServeHTTP(w, r)
+			})
+		}
+	}
+
+	h := New(rec("outer"), rec("inner"))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if !slices.Equal(order, []string{"outer", "inner"}) {
+		t.Fatalf("middleware order: got %v, want [outer inner]", order)
 	}
 }
