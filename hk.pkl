@@ -1,0 +1,10 @@
+amends "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Builtins.pkl"
+
+// Keep this list minimal (golink-xtd): gofmt + golangci-lint before commit.
+// Tests stay out of pre-commit and run in CI instead — full `go test ./...`
+// is too slow for every commit; `mise run test` covers it locally on demand.
+steps = new Mapping {
+    ["go_fmt"] = Builtins.go_fmt
+    ["golangci_lint"] = Builtins.golangci_lint
+}
