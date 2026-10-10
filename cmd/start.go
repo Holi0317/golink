@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/chainguard-dev/clog"
 	"github.com/urfave/cli/v3"
 
 	"github.com/holi0317/golink/server"
@@ -37,7 +37,7 @@ func startCmd() *cli.Command {
 			if err != nil {
 				return fmt.Errorf("listening on %s: %w", addr, err)
 			}
-			slog.Info("golink listening", "addr", ln.Addr().String())
+			clog.FromContext(ctx).Info("golink listening", "addr", ln.Addr().String())
 
 			srv := &http.Server{Handler: server.New()}
 			serveErr := make(chan error, 1)
