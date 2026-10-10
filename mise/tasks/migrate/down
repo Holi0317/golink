@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-# Roll back the last dbmate migration against the dev postgres (pitchfork daemon).
-set -euo pipefail
-cd "${MISE_PROJECT_ROOT:-.}"
-set -a
-source ./env/.env.dev
-set +a
-dbmate down
