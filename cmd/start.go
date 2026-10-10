@@ -58,7 +58,9 @@ func startCmd() *cli.Command {
 			clog.FromContext(ctx).Info("golink listening", "addr", ln.Addr().String())
 
 			srv := &http.Server{Handler: server.New(
+				pool,
 				server.ClogProvider(clog.FromContext(ctx)),
+				server.RequestLogger(),
 			)}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()
