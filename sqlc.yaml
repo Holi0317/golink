@@ -1,0 +1,14 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    # dbmate migration files double as the schema source; no db/schema.sql.
+    schema: "db/migrations"
+    queries: "db/queries"
+    gen:
+      go:
+        package: "db"
+        out: "server/db"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "timestamptz"
+            go_type: "time.Time"

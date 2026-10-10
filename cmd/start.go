@@ -20,6 +20,7 @@ import (
 
 func startCmd() *cli.Command {
 	var flagPort uint16
+	var flagDatabase string
 
 	return &cli.Command{
 		Name:  "start",
@@ -30,8 +31,25 @@ func startCmd() *cli.Command {
 				Value:       8080,
 				Destination: &flagPort,
 			},
+			&cli.StringFlag{
+				// Falls back to the DATABASE_URL environment variable; both
+				// plain --database (miss) and empty env are an error so the
+				// server never boots without knowing where its data is.
+				Name:        "database",
+				Sources:     cli.EnvVars("DATABASE_URL"),
+				Required:    true,
+				Destination: &flagDatabase,
+			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
+			pool, err := server.NewPool(ctx, flagDatabase)
+			if err != nil {
+				return fmt.Errorf("connecting to database: %w", err)
+			}
+			defer pool.Close()
+			log := clog.FromContext(ctx)
+			log.Info("database pool ready")
+
 			addr := net.JoinHostPort("127.0.0.1", strconv.FormatUint(uint64(flagPort), 10))
 			ln, err := net.Listen("tcp", addr)
 			if err != nil {

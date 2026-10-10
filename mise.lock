@@ -1169,3 +1169,30 @@ conda_deps = [
     "liblzma-5.8.3-hfd05255_1",
     "ca-certificates-2026.7.22-h4c7d964_0",
 ]
+
+[[tools.sqlc]]
+version = "1.31.1"
+backend = "aqua:sqlc-dev/sqlc"
+specifiers = ["latest"]
+
+[tools.sqlc."platforms.linux-arm64"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_linux_arm64.tar.gz"
+
+[tools.sqlc."platforms.linux-arm64-musl"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_linux_arm64.tar.gz"
+
+[tools.sqlc."platforms.linux-x64"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_linux_amd64.tar.gz"
+
+[tools.sqlc."platforms.linux-x64-musl"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_linux_amd64.tar.gz"
+
+[tools.sqlc."platforms.macos-arm64"]
+checksum = "blake3:a4b73d5389eecc7a03e8c821f04ecb25d7481c022f73e12bffa8d79da8e56e83"
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_darwin_arm64.tar.gz"
+
+[tools.sqlc."platforms.macos-x64"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_darwin_amd64.tar.gz"
+
+[tools.sqlc."platforms.windows-x64"]
+url = "https://downloads.sqlc.dev/sqlc_1.31.1_windows_amd64.tar.gz"
