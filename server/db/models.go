@@ -9,9 +9,10 @@ import (
 )
 
 type Link struct {
-	Slug      string
+	ID        int32
 	TargetUrl string
 	CreatedBy string
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Slug      string
 }

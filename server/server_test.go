@@ -33,19 +33,22 @@ func testPool(t *testing.T) *pgxpool.Pool {
 }
 
 // seedLink inserts a link row and schedules its removal, so tests never leak
-// state into the developer database.
-func seedLink(t *testing.T, pool *pgxpool.Pool, slug, targetURL string) {
+// state into the developer database. It returns the created row, so tests
+// can address it by id.
+func seedLink(t *testing.T, pool *pgxpool.Pool, slug, targetURL string) db.Link {
 	t.Helper()
 
 	queries := db.New(pool)
-	if _, err := queries.CreateLink(context.Background(), db.CreateLinkParams{
+	link, err := queries.CreateLink(context.Background(), db.CreateLinkParams{
 		Slug:      slug,
 		TargetUrl: targetURL,
 		CreatedBy: "server_test",
-	}); err != nil {
+	})
+	if err != nil {
 		t.Fatalf("seeding link %q: %v", slug, err)
 	}
-	t.Cleanup(func() { _, _ = queries.DeleteLink(context.Background(), slug) })
+	t.Cleanup(func() { _, _ = queries.DeleteLink(context.Background(), link.ID) })
+	return link
 }
 
 // A stored slug resolves to a 302 with the stored URL as Location.

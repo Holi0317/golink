@@ -12,7 +12,7 @@ import (
 const createLink = `-- name: CreateLink :one
 insert into links (slug, target_url, created_by)
 values ($1, $2, $3)
-returning slug, target_url, created_by, created_at, updated_at
+returning id, target_url, created_by, created_at, updated_at, slug
 `
 
 type CreateLinkParams struct {
@@ -25,21 +25,22 @@ func (q *Queries) CreateLink(ctx context.Context, arg CreateLinkParams) (Link, e
 	row := q.db.QueryRow(ctx, createLink, arg.Slug, arg.TargetUrl, arg.CreatedBy)
 	var i Link
 	err := row.Scan(
-		&i.Slug,
+		&i.ID,
 		&i.TargetUrl,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Slug,
 	)
 	return i, err
 }
 
 const deleteLink = `-- name: DeleteLink :execrows
-delete from links where slug = $1
+delete from links where id = $1
 `
 
-func (q *Queries) DeleteLink(ctx context.Context, slug string) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteLink, slug)
+func (q *Queries) DeleteLink(ctx context.Context, id int32) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteLink, id)
 	if err != nil {
 		return 0, err
 	}
@@ -48,26 +49,48 @@ func (q *Queries) DeleteLink(ctx context.Context, slug string) (int64, error) {
 
 const getLink = `-- name: GetLink :one
 
-select slug, target_url, created_by, created_at, updated_at from links where slug = $1
+select id, target_url, created_by, created_at, updated_at, slug from links where slug = $1
 `
 
 // Queries for the links table. Generated Go code lives in server/db
 // (golink-1yx); run `mise run sqlc-generate` after editing this file.
+//
+// Redirect resolution is by slug; edits and deletes target the id, since the
+// slug is what gets published and should not be a edit handle.
 func (q *Queries) GetLink(ctx context.Context, slug string) (Link, error) {
 	row := q.db.QueryRow(ctx, getLink, slug)
 	var i Link
 	err := row.Scan(
-		&i.Slug,
+		&i.ID,
 		&i.TargetUrl,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Slug,
+	)
+	return i, err
+}
+
+const getLinkByID = `-- name: GetLinkByID :one
+select id, target_url, created_by, created_at, updated_at, slug from links where id = $1
+`
+
+func (q *Queries) GetLinkByID(ctx context.Context, id int32) (Link, error) {
+	row := q.db.QueryRow(ctx, getLinkByID, id)
+	var i Link
+	err := row.Scan(
+		&i.ID,
+		&i.TargetUrl,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Slug,
 	)
 	return i, err
 }
 
 const listLinks = `-- name: ListLinks :many
-select slug, target_url, created_by, created_at, updated_at from links order by slug
+select id, target_url, created_by, created_at, updated_at, slug from links order by slug
 `
 
 func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
@@ -80,11 +103,12 @@ func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
 	for rows.Next() {
 		var i Link
 		if err := rows.Scan(
-			&i.Slug,
+			&i.ID,
 			&i.TargetUrl,
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.Slug,
 		); err != nil {
 			return nil, err
 		}
@@ -99,24 +123,25 @@ func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
 const updateLink = `-- name: UpdateLink :one
 update links
 set target_url = $2, updated_at = now()
-where slug = $1
-returning slug, target_url, created_by, created_at, updated_at
+where id = $1
+returning id, target_url, created_by, created_at, updated_at, slug
 `
 
 type UpdateLinkParams struct {
-	Slug      string
+	ID        int32
 	TargetUrl string
 }
 
 func (q *Queries) UpdateLink(ctx context.Context, arg UpdateLinkParams) (Link, error) {
-	row := q.db.QueryRow(ctx, updateLink, arg.Slug, arg.TargetUrl)
+	row := q.db.QueryRow(ctx, updateLink, arg.ID, arg.TargetUrl)
 	var i Link
 	err := row.Scan(
-		&i.Slug,
+		&i.ID,
 		&i.TargetUrl,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Slug,
 	)
 	return i, err
 }

@@ -12,13 +12,13 @@ templ Edit(link db.Link) {
 
 templ editContent(link db.Link) {
 	<h2>Edit go link <code>{ link.Slug }</code></h2>
-	<form method="post" action={ templ.URL("/_/edit/" + link.Slug) }>
+	<form method="post" action={ editURL(link.ID) }>
 		<label for="target_url">Target URL</label>
 		<input id="target_url" name="target_url" type="url" value={ link.TargetUrl } required/>
 		<button type="submit">Save</button>
 	</form>
 	<p>
-		<a href="/">Back to all links</a> ·
-		<a href={ templ.URL("/_/delete/" + link.Slug) }>Delete this link</a>
+		<a href="/_/">Back to all links</a> ·
+		<a href={ deleteURL(link.ID) }>Delete this link</a>
 	</p>
 }

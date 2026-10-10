@@ -44,10 +44,18 @@ func New(pool *pgxpool.Pool, mws ...Middleware) http.Handler {
 		// pointing people there.
 		http.Redirect(w, r, "/_/", http.StatusTemporaryRedirect)
 	})
-	// Both / and /_ paths are served by the patterns below; the settings
-	// wildcard matches "/_" (empty suffix) and everything under "/_/".
-	mux.HandleFunc("GET /_/{path...}", s.settings)
-	mux.HandleFunc("POST /_/{path...}", s.settings)
+	// The settings app is its own mux rooted at /_, mounted with a two-way
+	// StripPrefix so its handlers route with plain patterns: "/_/" maps to
+	// "/" and "/_/edit/42" to "/edit/42". The bare "/_" is an explicit
+	// redirect because the wildcard above does not cover it reliably.
+	settings := http.StripPrefix("/_", s.settingsMux())
+	redebounce := func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/_/", http.StatusTemporaryRedirect)
+	}
+	mux.HandleFunc("GET /_", redebounce)
+	mux.HandleFunc("POST /_", redebounce)
+	mux.Handle("GET /_/{path...}", settings)
+	mux.Handle("POST /_/{path...}", settings)
 	mux.HandleFunc("GET /{slug}", s.redirect)
 	// Longer paths have no single slug to resolve; ServeMux routes them here
 	// because the more specific patterns above do not match.

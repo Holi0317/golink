@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
+	"strconv"
 
 	"github.com/a-h/templ"
 	"github.com/chainguard-dev/clog"
@@ -19,6 +19,33 @@ import (
 // placeholderCreatedBy stands in for the identity of whoever edits a link
 // until tailscale-based identity lands (golink-ux4).
 const placeholderCreatedBy = "unknown"
+
+// settingsMux builds the routes of the settings app under /_. It is its own
+// mux so routing happens with plain HandleFunc patterns, free of the
+// top-level redirect service. Path values are link ids.
+//
+// Routes:
+//   - GET  /_/:            list + create form
+//   - POST /_/:            create link
+//   - GET  /_/edit/{id}:   edit form
+//   - POST /_/edit/{id}:   update link
+//   - GET  /_/delete/{id}: delete confirmation
+//   - POST /_/delete/{id}: delete link
+//   - anything else:       not-found page
+func (s *Server) settingsMux() *http.ServeMux {
+	settings := http.NewServeMux()
+	settings.HandleFunc("GET /{$}", s.listPage)
+	settings.HandleFunc("POST /{$}", s.create)
+	settings.HandleFunc("GET /edit/{id}", s.editForm)
+	settings.HandleFunc("POST /edit/{id}", s.update)
+	settings.HandleFunc("GET /delete/{id}", s.deleteConfirm)
+	settings.HandleFunc("POST /delete/{id}", s.destroy)
+	// Unmatched paths inside the app (unknown page, malformed id) get the
+	// not-found page instead of ServeMux's plain one.
+	settings.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { notFoundStatus(w, r, "") })
+	settings.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) { notFoundStatus(w, r, "") })
+	return settings
+}
 
 // validSlug reports whether the slug is usable as a go link: non-empty URL
 // unreserved characters only (letters, digits, and -._~), so the slug works
@@ -47,49 +74,6 @@ func validTargetURL(raw string) (u *url.URL, ok bool) {
 	}
 	ok = (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 	return u, ok
-}
-
-// settings serves the whole settings app under /_: the patterns
-// "GET /_/{path...}" and "POST /_/{path...}" both land here, and it routes
-// on the remaining path and method. Unknown paths answer the not-found page.
-//
-// Routes:
-//   - GET /_             list + create form
-//   - POST /_            create link
-//   - GET /_/edit/{s}    edit form
-//   - POST /_/edit/{s}   update link
-//   - GET /_/delete/{s}  delete confirmation
-//   - POST /_/delete/{s} delete link
-func (s *Server) settings(w http.ResponseWriter, r *http.Request) {
-	head, tail, _ := strings.Cut(r.PathValue("path"), "/")
-
-	switch {
-	case head == "": // "/_"
-		s.postOrGet(w, r, s.create, s.listPage)
-
-	case head == "edit" && tail != "": // "edit/{slug}"
-		s.postOrGet(w, r, func(w http.ResponseWriter, r *http.Request) { s.update(w, r, tail) }, func(w http.ResponseWriter, r *http.Request) { s.editForm(w, r, tail) })
-
-	case head == "delete" && tail != "": // "delete/{slug}"
-		s.postOrGet(w, r, func(w http.ResponseWriter, r *http.Request) { s.destroy(w, r, tail) }, func(w http.ResponseWriter, r *http.Request) { s.deleteConfirm(w, r, tail) })
-
-	default:
-		notFoundStatus(w, r, "")
-	}
-}
-
-// postOrGet dispatches between the POST and GET handlers for a settings
-// route; anything else answers 405 with an Allow header.
-func (s *Server) postOrGet(w http.ResponseWriter, r *http.Request, post, get http.HandlerFunc) {
-	switch r.Method {
-	case http.MethodPost:
-		post(w, r)
-	case http.MethodGet:
-		get(w, r)
-	default:
-		w.Header().Set("Allow", "GET, POST")
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
-	}
 }
 
 // listPage renders every stored link with the create form above it.
@@ -138,20 +122,21 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 }
 
 // editForm renders the edit form for a stored link.
-func (s *Server) editForm(w http.ResponseWriter, r *http.Request, slug string) {
-	link, ok := s.bySlug(w, r, slug)
+func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
+	link, ok := s.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
 	templ.Handler(www.Edit(link)).ServeHTTP(w, r)
 }
 
-// update records a new target URL for the slug and redirects back to the
-// list. The slug itself is fixed: renaming would break published links;
-// delete and recreate instead.
-func (s *Server) update(w http.ResponseWriter, r *http.Request, slug string) {
+// update records a new target URL for the link and redirects back to the
+// list. Rows are addressed by id; the slug is what gets published, so it is
+// never an edit handle.
+func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 	log := clog.FromContext(r.Context())
-	if _, ok := s.bySlug(w, r, slug); !ok {
+	link, ok := s.byID(w, r, r.PathValue("id"))
+	if !ok {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -164,10 +149,10 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request, slug string) {
 		return
 	}
 	if _, err := s.queries.UpdateLink(r.Context(), db.UpdateLinkParams{
-		Slug:      slug,
+		ID:        link.ID,
 		TargetUrl: rawURL,
 	}); err != nil {
-		log.Errorf("updating link %q: %v", slug, err)
+		log.Errorf("updating link %d: %v", link.ID, err)
 		http.Error(w, "golink: storage error", http.StatusInternalServerError)
 		return
 	}
@@ -175,8 +160,8 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request, slug string) {
 }
 
 // deleteConfirm renders the irreversible-deletion warning.
-func (s *Server) deleteConfirm(w http.ResponseWriter, r *http.Request, slug string) {
-	link, ok := s.bySlug(w, r, slug)
+func (s *Server) deleteConfirm(w http.ResponseWriter, r *http.Request) {
+	link, ok := s.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
@@ -184,31 +169,37 @@ func (s *Server) deleteConfirm(w http.ResponseWriter, r *http.Request, slug stri
 }
 
 // destroy removes the link row and redirects back to the list.
-func (s *Server) destroy(w http.ResponseWriter, r *http.Request, slug string) {
+func (s *Server) destroy(w http.ResponseWriter, r *http.Request) {
 	log := clog.FromContext(r.Context())
-	if _, ok := s.bySlug(w, r, slug); !ok {
+	link, ok := s.byID(w, r, r.PathValue("id"))
+	if !ok {
 		return
 	}
-	if _, err := s.queries.DeleteLink(r.Context(), slug); err != nil {
-		log.Errorf("deleting link %q: %v", slug, err)
+	if _, err := s.queries.DeleteLink(r.Context(), link.ID); err != nil {
+		log.Errorf("deleting link %d: %v", link.ID, err)
 		http.Error(w, "golink: storage error", http.StatusInternalServerError)
 		return
 	}
 	http.Redirect(w, r, "/_/", http.StatusSeeOther)
 }
 
-// bySlug fetches one link for the settings app. A miss renders the
-// not-found page and returns false, so callers can stop; other storage
-// errors answer 500 and also return false.
-func (s *Server) bySlug(w http.ResponseWriter, r *http.Request, slug string) (db.Link, bool) {
+// byID fetches one link for the settings app. A miss — unknown or malformed
+// id — renders the not-found page and returns false, so callers can stop;
+// other storage errors answer 500 and also return false.
+func (s *Server) byID(w http.ResponseWriter, r *http.Request, rawID string) (db.Link, bool) {
 	log := clog.FromContext(r.Context())
-	link, err := s.queries.GetLink(r.Context(), slug)
+	id, err := strconv.ParseInt(rawID, 10, 32)
+	if err != nil {
+		notFoundStatus(w, r, "")
+		return db.Link{}, false
+	}
+	link, err := s.queries.GetLinkByID(r.Context(), int32(id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		notFoundStatus(w, r, slug)
+		notFoundStatus(w, r, "")
 		return db.Link{}, false
 	}
 	if err != nil {
-		log.Errorf("resolving slug %q: %v", slug, err)
+		log.Errorf("resolving link id %q: %v", rawID, err)
 		http.Error(w, "golink: storage error", http.StatusInternalServerError)
 		return db.Link{}, false
 	}
@@ -227,7 +218,7 @@ func (s *Server) reject(w http.ResponseWriter, r *http.Request, message string, 
 }
 
 // notFoundStatus renders the not-found page. An empty slug stands for "no
-// slug here" (root, nested paths).
+// slug here" (unknown page, malformed id).
 func notFoundStatus(w http.ResponseWriter, r *http.Request, slug string) {
 	templ.Handler(www.NotFound(slug), templ.WithStatus(http.StatusNotFound)).ServeHTTP(w, r)
 }

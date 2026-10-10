@@ -17,8 +17,8 @@ templ deleteContent(link db.Link) {
 		goes to <code>{ link.TargetUrl }</code>. Anything depending on it will
 		start hitting the not-found page. This cannot be undone.
 	</p>
-	<form method="post" action={ templ.URL("/_/delete/" + link.Slug) }>
+	<form method="post" action={ deleteURL(link.ID) }>
 		<button type="submit">Delete { link.Slug }</button>
 	</form>
-	<p><a href="/">Cancel and go back</a></p>
+	<p><a href="/_/">Cancel and go back</a></p>
 }

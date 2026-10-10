@@ -1,8 +1,14 @@
 -- Queries for the links table. Generated Go code lives in server/db
 -- (golink-1yx); run `mise run sqlc-generate` after editing this file.
+--
+-- Redirect resolution is by slug; edits and deletes target the id, since the
+-- slug is what gets published and should not be a edit handle.
 
 -- name: GetLink :one
 select * from links where slug = $1;
+
+-- name: GetLinkByID :one
+select * from links where id = $1;
 
 -- name: ListLinks :many
 select * from links order by slug;
@@ -15,8 +21,8 @@ returning *;
 -- name: UpdateLink :one
 update links
 set target_url = $2, updated_at = now()
-where slug = $1
+where id = $1
 returning *;
 
 -- name: DeleteLink :execrows
-delete from links where slug = $1;
+delete from links where id = $1;

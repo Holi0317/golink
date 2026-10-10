@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -36,17 +37,28 @@ func settingsPOST(t *testing.T, pool *pgxpool.Pool, path string, fields url.Valu
 	return rec
 }
 
+// deleteRow removes the link row after the test, keyed by id.
+func deleteRow(pool *pgxpool.Pool, id int32) func() {
+	return func() { _, _ = db.New(pool).DeleteLink(context.Background(), id) }
+}
+
 // The list page shows every stored link with its edit and delete actions.
 func TestSettingsListShowsLinks(t *testing.T) {
 	pool := testPool(t)
-	seedLink(t, pool, "greet", "https://example.com/hello")
-	seedLink(t, pool, "issue", "https://example.com/issues")
+	first := seedLink(t, pool, "greet", "https://example.com/hello")
+	second := seedLink(t, pool, "issue", "https://example.com/issues")
 
 	rec := settingsGET(t, pool, "/_/")
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /_: got status %d, want %d", rec.Code, http.StatusOK)
+		t.Fatalf("GET /_/: got status %d, want %d", rec.Code, http.StatusOK)
 	}
-	for _, fragment := range []string{"greet", "issue", "https://example.com/hello", "/_/edit/greet", "/_/delete/issue"} {
+	for _, fragment := range []string{
+		"greet",
+		"issue",
+		"https://example.com/hello",
+		"/_/edit/" + strconv.Itoa(int(first.ID)),
+		"/_/delete/" + strconv.Itoa(int(second.ID)),
+	} {
 		if !strings.Contains(rec.Body.String(), fragment) {
 			t.Errorf("list page: body misses %q", fragment)
 		}
@@ -57,25 +69,25 @@ func TestSettingsListShowsLinks(t *testing.T) {
 // list; the link is then live as a go link.
 func TestSettingsCreateLinks(t *testing.T) {
 	pool := testPool(t)
-	t.Cleanup(func() { _, _ = db.New(pool).DeleteLink(context.Background(), "fresh") })
 
 	rec := settingsPOST(t, pool, "/_/", url.Values{
 		"slug":       {"fresh"},
 		"target_url": {"https://example.com/new"},
 	})
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("POST /_: got status %d, want %d", rec.Code, http.StatusSeeOther)
+		t.Fatalf("POST /_/: got status %d, want %d", rec.Code, http.StatusSeeOther)
 	}
 	if got, want := rec.Header().Get("Location"), "/_/"; got != want {
-		t.Errorf("POST /_ Location: got %q, want %q", got, want)
+		t.Errorf("POST /_/ Location: got %q, want %q", got, want)
 	}
 
-	link, err := db.New(pool).GetLink(context.Background(), "fresh")
+	created, err := db.New(pool).GetLink(context.Background(), "fresh")
 	if err != nil {
 		t.Fatalf("created link missing from database: %v", err)
 	}
-	if link.TargetUrl != "https://example.com/new" {
-		t.Errorf("target_url: got %q, want %q", link.TargetUrl, "https://example.com/new")
+	t.Cleanup(deleteRow(pool, created.ID))
+	if created.TargetUrl != "https://example.com/new" {
+		t.Errorf("target_url: got %q, want %q", created.TargetUrl, "https://example.com/new")
 	}
 }
 
@@ -95,6 +107,9 @@ func TestSettingsCreateRejectsBadInput(t *testing.T) {
 		{name: "empty slug", fields: url.Values{
 			"slug": {""}, "target_url": {"https://example.com/x"},
 		}, wantMessage: "slugs"},
+		{name: "underscores-only shadow slug", fields: url.Values{
+			"slug": {"_"}, "target_url": {"https://example.com/x"},
+		}, wantMessage: "slugs"},
 		{name: "non-http(s) target", fields: url.Values{
 			"slug": {"cute"}, "target_url": {"ftp://example.com/file"},
 		}, wantMessage: "http(s)"},
@@ -103,7 +118,7 @@ func TestSettingsCreateRejectsBadInput(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			rec := settingsPOST(t, pool, "/_/", c.fields)
 			if rec.Code != http.StatusBadRequest {
-				t.Errorf("POST /_: got status %d, want %d", rec.Code, http.StatusBadRequest)
+				t.Errorf("POST /_/: got status %d, want %d", rec.Code, http.StatusBadRequest)
 			}
 			if !strings.Contains(rec.Body.String(), c.wantMessage) {
 				t.Errorf("reject page: body misses %q: %q", c.wantMessage, rec.Body.String())
@@ -122,21 +137,23 @@ func TestSettingsCreateRejectsDuplicate(t *testing.T) {
 		"target_url": {"https://example.com/other"},
 	})
 	if rec.Code != http.StatusBadRequest {
-		t.Errorf("POST /_: got status %d, want %d", rec.Code, http.StatusBadRequest)
+		t.Errorf("POST /_/: got status %d, want %d", rec.Code, http.StatusBadRequest)
 	}
 	if !strings.Contains(rec.Body.String(), "already exists") {
 		t.Errorf("duplicate page: body misses the duplicate message: %q", rec.Body.String())
 	}
 }
 
-// The edit form prefills the stored target; updating it rewrites the row.
+// The edit form prefills the stored target; updating it rewrites the row
+// while the slug stays untouched. Edits address the row by id, not slug.
 func TestSettingsEditUpdatesLink(t *testing.T) {
 	pool := testPool(t)
-	seedLink(t, pool, "store", "https://example.com/shop")
+	seeded := seedLink(t, pool, "store", "https://example.com/shop")
+	editPath := "/_/edit/" + strconv.Itoa(int(seeded.ID))
 
-	rec := settingsPOST(t, pool, "/_/edit/store", url.Values{"target_url": {"https://example.com/market"}})
+	rec := settingsPOST(t, pool, editPath, url.Values{"target_url": {"https://example.com/market"}})
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("POST /_/edit/store: got status %d, want %d", rec.Code, http.StatusSeeOther)
+		t.Fatalf("POST %s: got status %d, want %d", editPath, rec.Code, http.StatusSeeOther)
 	}
 
 	link, err := db.New(pool).GetLink(context.Background(), "store")
@@ -146,15 +163,20 @@ func TestSettingsEditUpdatesLink(t *testing.T) {
 	if link.TargetUrl != "https://example.com/market" {
 		t.Errorf("target_url: got %q, want %q", link.TargetUrl, "https://example.com/market")
 	}
+	if link.ID != seeded.ID {
+		t.Errorf("edit address by id: row id changed from %d to %d", seeded.ID, link.ID)
+	}
 }
 
-// Editing an unknown slug answers the not-found page.
-func TestSettingsEditUnknownSlug(t *testing.T) {
+// Editing an unknown or malformed id answers the not-found page.
+func TestSettingsEditUnknownID(t *testing.T) {
 	pool := testPool(t) // no rows seeded
 
-	rec := settingsGET(t, pool, "/_/edit/ghost")
-	if rec.Code != http.StatusNotFound {
-		t.Errorf("GET /_/edit/ghost: got status %d, want %d", rec.Code, http.StatusNotFound)
+	for _, path := range []string{"/_/edit/99999", "/_/edit/abc"} {
+		rec := settingsGET(t, pool, path)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("GET %s: got status %d, want %d", path, rec.Code, http.StatusNotFound)
+		}
 	}
 }
 
@@ -162,16 +184,17 @@ func TestSettingsEditUnknownSlug(t *testing.T) {
 // slug stops resolving.
 func TestSettingsDeleteRemovesLink(t *testing.T) {
 	pool := testPool(t)
-	seedLink(t, pool, "chore", "https://example.com/chore")
+	seeded := seedLink(t, pool, "chore", "https://example.com/chore")
+	deletePath := "/_/delete/" + strconv.Itoa(int(seeded.ID))
 
-	rec := settingsGET(t, pool, "/_/delete/chore")
+	rec := settingsGET(t, pool, deletePath)
 	if rec.Code != http.StatusOK {
-		t.Fatalf("GET /_/delete/chore: got status %d, want %d", rec.Code, http.StatusOK)
+		t.Fatalf("GET %s: got status %d, want %d", deletePath, rec.Code, http.StatusOK)
 	}
 
-	rec = settingsPOST(t, pool, "/_/delete/chore", url.Values{})
+	rec = settingsPOST(t, pool, deletePath, url.Values{})
 	if rec.Code != http.StatusSeeOther {
-		t.Fatalf("POST /_/delete/chore: got status %d, want %d", rec.Code, http.StatusSeeOther)
+		t.Fatalf("POST %s: got status %d, want %d", deletePath, rec.Code, http.StatusSeeOther)
 	}
 
 	if _, err := db.New(pool).GetLink(context.Background(), "chore"); err == nil {

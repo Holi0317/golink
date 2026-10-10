@@ -7,9 +7,13 @@ templ NotFound(slug string) {
 }
 
 templ notFoundContent(slug string) {
-	<h1>No go link for “{ slug }” yet</h1>
+	if slug != "" {
+		<h1>No go link for “{ slug }” yet</h1>
+	} else {
+		<h1>No go link here</h1>
+	}
 	<p>
 		Do you want to create a new go link for it?
-		<a href="/">Create it in the settings</a>.
+		<a href="/_/">Create it in the settings</a>.
 	</p>
 }

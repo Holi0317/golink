@@ -34,8 +34,8 @@ templ indexContent(links []db.Link) {
 				<td>{ link.TargetUrl }</td>
 				<td>{ link.UpdatedAt.UTC().Format("2006-01-02 15:04 MST") }</td>
 				<td>
-					<a href={ templ.URL("/_/edit/" + link.Slug) }>Edit</a>
-					<a href={ templ.URL("/_/delete/" + link.Slug) }>Delete</a>
+					<a href={ editURL(link.ID) }>Edit</a>
+					<a href={ deleteURL(link.ID) }>Delete</a>
 				</td>
 			</tr>
 		}
