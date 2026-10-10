@@ -1,0 +1,26 @@
+// Package www holds the templ components for the settings UI (golink-71w).
+// Generated Go code (foo_templ.go) lives next to these sources and is
+// committed: `go build` needs it, and committing keeps the build free of a
+// codegen step. Regenerate after editing with `mise run templ-generate`.
+package www
+
+templ Layout(title string, content templ.Component) {
+	<!DOCTYPE html>
+	<html>
+		<head>
+			<meta charset="utf-8"/>
+			<title>{ title } — golink</title>
+			<style>
+				body { font-family: system-ui, sans-serif; margin: 2rem auto; max-width: 55rem; padding: 0 1rem; color: #1a1a1a; }
+				table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; }
+				th, td { border: 1px solid #ddd; padding: 0.4rem 0.6rem; text-align: left; }
+				input { padding: 0.3rem 0.5rem; }
+				label { display: block; margin: 0.4rem 0; }
+				p { line-height: 1.5; }
+			</style>
+		</head>
+		<body>
+			@content
+		</body>
+	</html>
+}

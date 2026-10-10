@@ -1,0 +1,43 @@
+package www
+
+import (
+	"github.com/holi0317/golink/server/db"
+)
+
+// Index lists every link with its slug and target URL, and carries the
+// create form at the top. Everyone can edit every link (blind trust).
+templ Index(links []db.Link) {
+	@Layout("golink — settings", indexContent(links))
+}
+
+templ indexContent(links []db.Link) {
+	<h2>Create a go link</h2>
+	<form method="post" action="/_/">
+		<label for="slug">Slug</label>
+		<input id="slug" name="slug" required placeholder="greet" pattern="[^/]+"/>
+		<label for="target_url">Target URL</label>
+		<input id="target_url" name="target_url" type="url" required placeholder="https://example.com/hello"/>
+		<button type="submit">Create</button>
+	</form>
+
+	<h2>All go links</h2>
+	<table>
+		<tr>
+			<th>Slug</th>
+			<th>Goes to</th>
+			<th>Updated</th>
+			<th>Actions</th>
+		</tr>
+		for _, link := range links {
+			<tr>
+				<td>{ link.Slug }</td>
+				<td>{ link.TargetUrl }</td>
+				<td>{ link.UpdatedAt.UTC().Format("2006-01-02 15:04 MST") }</td>
+				<td>
+					<a href={ templ.URL("/_/edit/" + link.Slug) }>Edit</a>
+					<a href={ templ.URL("/_/delete/" + link.Slug) }>Delete</a>
+				</td>
+			</tr>
+		}
+	</table>
+}

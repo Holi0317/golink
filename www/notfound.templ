@@ -1,0 +1,15 @@
+package www
+
+// NotFound is the miss page: the requested slug has no entry. It asks
+// whether the visitor wants to create the go link.
+templ NotFound(slug string) {
+	@Layout("not found — golink", notFoundContent(slug))
+}
+
+templ notFoundContent(slug string) {
+	<h1>No go link for “{ slug }” yet</h1>
+	<p>
+		Do you want to create a new go link for it?
+		<a href="/">Create it in the settings</a>.
+	</p>
+}

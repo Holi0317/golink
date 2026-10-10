@@ -1,0 +1,24 @@
+package www
+
+import (
+	"github.com/holi0317/golink/server/db"
+)
+
+// DeleteConfirm asks for confirmation before removing a link; deletions are
+// irreversible, so the actual removal is a separate POST.
+templ DeleteConfirm(link db.Link) {
+	@Layout("delete “"+link.Slug+"” — golink", deleteContent(link))
+}
+
+templ deleteContent(link db.Link) {
+	<h2>Delete go link <code>{ link.Slug }</code>?</h2>
+	<p>
+		This deletes the go link <code>{ link.Slug }</code>, which currently
+		goes to <code>{ link.TargetUrl }</code>. Anything depending on it will
+		start hitting the not-found page. This cannot be undone.
+	</p>
+	<form method="post" action={ templ.URL("/_/delete/" + link.Slug) }>
+		<button type="submit">Delete { link.Slug }</button>
+	</form>
+	<p><a href="/">Cancel and go back</a></p>
+}

@@ -31,23 +31,27 @@ type Server struct {
 // and sees every request first.
 //
 // Routes:
+//   - GET /: redirect to the settings app at /_.
 //   - GET /{slug}: core redirect service; 302 to the URL stored in the
 //     database, not-found page on a miss.
-//   - /_/: the settings app (placeholder until golink-71w).
+//   - /_/*: the settings app (golink-71w for the templ UI).
 func New(pool *pgxpool.Pool, mws ...Middleware) http.Handler {
 	s := &Server{queries: db.New(pool)}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", s.notFound(""))
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		// The settings app is the front door; / has no meaning other than
+		// pointing people there.
+		http.Redirect(w, r, "/_/", http.StatusTemporaryRedirect)
+	})
+	// Both / and /_ paths are served by the patterns below; the settings
+	// wildcard matches "/_" (empty suffix) and everything under "/_/".
+	mux.HandleFunc("GET /_/{path...}", s.settings)
+	mux.HandleFunc("POST /_/{path...}", s.settings)
 	mux.HandleFunc("GET /{slug}", s.redirect)
 	// Longer paths have no single slug to resolve; ServeMux routes them here
 	// because the more specific patterns above do not match.
 	mux.HandleFunc("GET /", s.notFound(""))
-	// The settings app owns everything under /_/; it is not built yet, so a
-	// placeholder answers for now (golink-71w). It is registered as GET-only
-	// because a method-less wildcard here conflicts with the GET catch-all
-	// below in ServeMux's precedence rules.
-	mux.HandleFunc("GET /_/", s.settingsPlaceholder)
 
 	var h http.Handler = mux
 	for i := len(mws) - 1; i >= 0; i-- {
@@ -76,27 +80,10 @@ func (s *Server) redirect(w http.ResponseWriter, r *http.Request) {
 }
 
 // notFound is the miss page: it asks whether the visitor wants to create the
-// go link. PLACEHOLDER until golink-71w: the settings UI will provide a
-// templ page with a working create form; this just ports the ask over a
-// plain HTML response.
+// go link. An empty slug stands for paths with no slug at all (root,
+// nested).
 func (s *Server) notFound(slug string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		// golink-71w replaces this markup with the templ not-found page and
-		// links the ask to the create form.
-		body := "<!DOCTYPE html>\n" +
-			"<html><head><title>Not found — golink</title></head><body>\n" +
-			"<h1>No go link for “" + slug + "” yet</h1>\n" +
-			"<p>Do you want to create a new go link for it? Head to the\n" +
-			"settings app (create form coming soon).</p>\n" +
-			"</body></html>\n"
-		_, _ = w.Write([]byte(body))
+		notFoundStatus(w, r, slug)
 	}
-}
-
-// settingsPlaceholder stands in for the settings app until golink-71w
-// delivers the templ-based UI at /_/*.
-func (s *Server) settingsPlaceholder(w http.ResponseWriter, r *http.Request) {
-	http.Error(w, "golink: settings app not implemented yet", http.StatusNotImplemented)
 }

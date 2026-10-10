@@ -84,34 +84,33 @@ func TestUnknownSlugSendsNotFoundPage(t *testing.T) {
 	}
 }
 
-// Paths without a single slug (root, nested paths) also answer the
-// not-found page rather than leaking into storage.
-func TestSluglessPathSendsNotFoundPage(t *testing.T) {
-	pool := testPool(t)
-
-	for _, path := range []string{"/", "/nested/path"} {
-		t.Run(path, func(t *testing.T) {
-			rec := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, path, nil)
-			New(pool).ServeHTTP(rec, req)
-
-			if rec.Code != http.StatusNotFound {
-				t.Errorf("GET %s: got status %d, want %d", path, rec.Code, http.StatusNotFound)
-			}
-		})
-	}
-}
-
-// The settings app owns /_/*; until golink-71w it answers as a placeholder.
-func TestSettingsAppPlaceholder(t *testing.T) {
+// The root redirects to the settings app at /_, which is the front door.
+func TestRootRedirectsToSettings(t *testing.T) {
 	pool := testPool(t)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/_/links", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	New(pool).ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusNotImplemented {
-		t.Errorf("GET /_/links: got status %d, want %d", rec.Code, http.StatusNotImplemented)
+	if rec.Code != http.StatusTemporaryRedirect {
+		t.Errorf("GET /: got status %d, want %d", rec.Code, http.StatusTemporaryRedirect)
+	}
+	if got, want := rec.Header().Get("Location"), "/_/"; got != want {
+		t.Errorf("GET / Location: got %q, want %q", got, want)
+	}
+}
+
+// Nested paths have no single slug to resolve; they answer the not-found
+// page rather than leaking into storage.
+func TestNestedPathSendsNotFoundPage(t *testing.T) {
+	pool := testPool(t)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/nested/path", nil)
+	New(pool).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET /nested/path: got status %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
 

@@ -1,0 +1,13 @@
+package www
+
+// Error renders a single user-facing failure message (bad form input, slug
+// already taken, and the like). The message is plain text for the visitor.
+templ Error(message string) {
+	@Layout("error — golink", errorContent(message))
+}
+
+templ errorContent(message string) {
+	<h1>Something went wrong</h1>
+	<p>{ message }</p>
+	<p><a href="/">Back to all links</a></p>
+}

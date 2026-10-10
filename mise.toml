@@ -1,5 +1,6 @@
 [tools]
 dbmate = "latest"
+"github:a-h/templ" = "latest"
 "github:gastownhall/beads" = "latest"
 go = "1.27"
 golangci-lint = "2.14.0"
@@ -42,6 +43,12 @@ run = "dbmate up"
 [tasks.migrate-down]
 description = "Roll back the last dbmate migration on the dev postgres"
 run = "dbmate down"
+
+[tasks.templ-generate]
+description = "Regenerate Go components (www/*_templ.go) from www/*.templ via templ"
+# Generated *_templ.go files are committed: `go build` needs them, and
+# committing keeps builds and CI free of a codegen step.
+run = "templ generate"
 
 [tasks.sqlc-generate]
 description = "Regenerate Go DB code (server/db) from db/queries + db/migrations via sqlc"

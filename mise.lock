@@ -742,6 +742,46 @@ checksum = "sha256:94f06e4ad75ff1795f8ea74b2ce804a5d04e33e4c74c2e99e84ecf7bb8c47
 url = "https://github.com/amacneil/dbmate/releases/download/v2.36.0/dbmate-windows-amd64.exe"
 url_api = "https://api.github.com/repos/amacneil/dbmate/releases/assets/573759034"
 
+[[tools."github:a-h/templ"]]
+version = "0.3.1070"
+backend = "github:a-h/templ"
+specifiers = ["latest"]
+
+[tools."github:a-h/templ"."platforms.linux-arm64"]
+checksum = "sha256:4e920637a226586e65d49dc33ec5cd353fbf2c8779d36cedee82d5604f46d875"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064966"
+
+[tools."github:a-h/templ"."platforms.linux-arm64-musl"]
+checksum = "sha256:4e920637a226586e65d49dc33ec5cd353fbf2c8779d36cedee82d5604f46d875"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064966"
+
+[tools."github:a-h/templ"."platforms.linux-x64"]
+checksum = "sha256:04c5553558242fe3d2348a90fc82eee228daefb60101ca44b149b58515889cea"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064963"
+
+[tools."github:a-h/templ"."platforms.linux-x64-musl"]
+checksum = "sha256:04c5553558242fe3d2348a90fc82eee228daefb60101ca44b149b58515889cea"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Linux_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064963"
+
+[tools."github:a-h/templ"."platforms.macos-arm64"]
+checksum = "sha256:95c9d479b3b4e2b4e268b875dc28547acb08301d34310ebf478e0975800bc427"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064945"
+
+[tools."github:a-h/templ"."platforms.macos-x64"]
+checksum = "sha256:74bae92e1fa401afa3f4679007ab9fb559a1ab1104c85aed887ac13139e6194e"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Darwin_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064943"
+
+[tools."github:a-h/templ"."platforms.windows-x64"]
+checksum = "sha256:6b3da83a851ae87ed0edfad21421f78ab921e5f818a07ac95f30d941a30cc219"
+url = "https://github.com/a-h/templ/releases/download/v0.3.1070/templ_Windows_x86_64.tar.gz"
+url_api = "https://api.github.com/repos/a-h/templ/releases/assets/610064968"
+
 [[tools."github:gastownhall/beads"]]
 version = "1.3.1"
 backend = "github:gastownhall/beads"
