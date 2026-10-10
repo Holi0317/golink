@@ -1,2 +1,12 @@
 [tools]
 "github:gastownhall/beads" = "latest"
+go = "1.27"
+
+[env]
+GOTOOLCHAIN = "local"
+
+[tasks.build]
+run = "go build ./..."
+
+[tasks.test]
+run = "go test ./..."
