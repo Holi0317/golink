@@ -1,6 +1,7 @@
 [tools]
 "github:gastownhall/beads" = "latest"
 go = "1.27"
+golangci-lint = "2.14.0"
 pitchfork = "latest"
 
 [env]
@@ -12,6 +13,10 @@ run = "go build -o ./build/golink ."
 
 [tasks.test]
 run = "go test ./..."
+
+[tasks.lint]
+description = "Lint the Go module with golangci-lint"
+run = "golangci-lint run"
 
 [tasks.dev]
 description = "Start the golink dev server (pitchfork daemon with reload on code change); follow logs with pitchfork logs golink -f"

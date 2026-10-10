@@ -85,7 +85,81 @@ url = "https://dl.google.com/go/go1.27.2.darwin-amd64.tar.gz"
 checksum = "sha256:1314008898bd40df77af4b014f777f08873dbdfbcd3d92308728ee03304fe04f"
 url = "https://dl.google.com/go/go1.27.2.windows-amd64.zip"
 
+[[tools.golangci-lint]]
+version = "2.14.0"
+backend = "aqua:golangci/golangci-lint"
+specifiers = ["2.14.0"]
+
+[tools.golangci-lint."platforms.linux-arm64"]
+checksum = "sha256:ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813674"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.linux-arm64-musl"]
+checksum = "sha256:ee7ec5f3453d15ddf106fae5a4d6c71737712348a979d1fe9cd52ec7ea299bae"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813674"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.linux-x64"]
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.linux-x64-musl"]
+checksum = "sha256:ab90aeb7b066f92a33415b638a50fe5344bbb75a0d32ad30cc248d88f81032ab"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-linux-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813815"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.macos-arm64"]
+checksum = "sha256:5ef5f36a7147e91dc58ef9ef4d11bb7bad5ead0c76eb6c01327a73c641d1dcc3"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-darwin-arm64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813591"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.macos-x64"]
+checksum = "sha256:a5667c1c3536be1740133213e1e822bfb8f0d98ea12903174d6d5f635e4ed68d"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-darwin-amd64.tar.gz"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813755"
+provenance = "github-attestations"
+
+[tools.golangci-lint."platforms.windows-x64"]
+checksum = "sha256:b15f903d1649283a2ab6e8d2f0c317eaf1f9f6b3763950e7e8b7e72a43dd724f"
+url = "https://github.com/golangci/golangci-lint/releases/download/v2.14.0/golangci-lint-2.14.0-windows-amd64.zip"
+url_api = "https://api.github.com/repos/golangci/golangci-lint/releases/assets/585813793"
+provenance = "github-attestations"
+
 [[tools.pitchfork]]
 version = "2.29.0"
 backend = "packslip:github.com/jdx/pitchfork"
-specifiers = ["2.29"]
+specifiers = [
+    "2.29",
+    "latest",
+]
+
+[tools.pitchfork."platforms.linux-arm64"]
+checksum = "sha256:dfea08ac9b4a8b2a3f4c9ce94c5faba9a1996634a22bdc6fd17510affe9dca71"
+url = "https://github.com/jdx/pitchfork/releases/download/v2.29.0/pitchfork-aarch64-unknown-linux-gnu.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
+repository_ids = { repository = "899500793" }
+
+[tools.pitchfork."platforms.linux-x64"]
+checksum = "sha256:80d48f7077f8612c7684777aef346b93d3ecca296d4d9b392b2fb5e50a4f891d"
+url = "https://github.com/jdx/pitchfork/releases/download/v2.29.0/pitchfork-x86_64-unknown-linux-gnu.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
+repository_ids = { repository = "899500793" }
+
+[tools.pitchfork."platforms.macos-arm64"]
+checksum = "sha256:06adf144e4a48dad55806706a7b0fe1a8dfc901726c5c8939e54fbc2bcabb04e"
+url = "https://github.com/jdx/pitchfork/releases/download/v2.29.0/pitchfork-aarch64-apple-darwin.tar.gz"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
+repository_ids = { repository = "899500793" }
+
+[tools.pitchfork."platforms.windows-x64"]
+checksum = "sha256:9747f3679f5c7ff4091bb3fe14c80ab92c9b15c212f37cd0193aa6e2da1631c1"
+url = "https://github.com/jdx/pitchfork/releases/download/v2.29.0/pitchfork-x86_64-pc-windows-msvc.zip"
+signer = "sigstore-oidc:https://github.com/jdx/pitchfork/.github/workflows/release.yml"
+repository_ids = { repository = "899500793" }

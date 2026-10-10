@@ -1,0 +1,9 @@
+#:schema https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+version: "2"
+
+# Start small; expand linters as the codebase grows (golink-pp8).
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
