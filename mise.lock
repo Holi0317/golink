@@ -84,3 +84,8 @@ url = "https://dl.google.com/go/go1.27.2.darwin-amd64.tar.gz"
 [tools.go."platforms.windows-x64"]
 checksum = "sha256:1314008898bd40df77af4b014f777f08873dbdfbcd3d92308728ee03304fe04f"
 url = "https://dl.google.com/go/go1.27.2.windows-amd64.zip"
+
+[[tools.pitchfork]]
+version = "2.29.0"
+backend = "packslip:github.com/jdx/pitchfork"
+specifiers = ["2.29"]

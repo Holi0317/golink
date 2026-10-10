@@ -5,3 +5,6 @@
 .beads-credential-key
 .beads/proxieddb/
 .beads.gate.lock
+
+# Build output
+build/

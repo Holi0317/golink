@@ -1,0 +1,23 @@
+#:schema https://pitchfork.jdx.dev/schema.json
+
+[daemons.sever]
+# Rebuild then run; exec makes the tracked PID the server itself so stop
+# signals reach it and the 10s graceful drain works.
+run = "mise x -- go build -o ./build/golink . && exec ./build/golink start --port $PORT"
+port = 8080
+# slog line emitted only after the listener is bound: real readiness, not a
+# TCP half-open guess.
+ready_output = "golink listening"
+# Changed Go sources trigger a rebuild + full restart, debounced by the
+# supervisor. Keep patterns off build output and .git.
+watch = [
+  "main.go",
+  "cmd/**/*.go",
+  "server/**/*.go",
+  "go.mod",
+  "go.sum",
+  "mise.toml",
+]
+# A failing compile stops the daemon; retry forever so the next good save
+# brings it back without manual intervention.
+retry = true

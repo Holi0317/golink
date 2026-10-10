@@ -1,12 +1,22 @@
 [tools]
 "github:gastownhall/beads" = "latest"
 go = "1.27"
+pitchfork = "latest"
 
 [env]
 GOTOOLCHAIN = "local"
 
 [tasks.build]
-run = "go build ./..."
+description = "Build the golink binary into ./build/"
+run = "go build -o ./build/golink ."
 
 [tasks.test]
 run = "go test ./..."
+
+[tasks.dev]
+description = "Start the golink dev server (pitchfork daemon with reload on code change); follow logs with pitchfork logs golink -f"
+run = "pitchfork start sever"
+
+[tasks.dev-stop]
+description = "Stop the golink dev server"
+run = "pitchfork stop sever"
