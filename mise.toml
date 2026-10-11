@@ -1,4 +1,7 @@
 [tools]
+# hk's actionlint builtin needs the binary; declaring it here keeps CI
+# (mise-action) and local dev on the same tool set.
+actionlint = "latest"
 "github:a-h/templ" = "latest"
 "github:gastownhall/beads" = "latest"
 go = "1.27"
