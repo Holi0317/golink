@@ -8,6 +8,7 @@ func New() *cli.Command {
 		Usage: "golink service on Tailscale",
 		Commands: []*cli.Command{
 			startCmd(),
+			migrateCmd(),
 		},
 	}
 }

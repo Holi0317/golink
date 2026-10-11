@@ -1,5 +1,4 @@
 [tools]
-dbmate = "latest"
 "github:a-h/templ" = "latest"
 "github:gastownhall/beads" = "latest"
 go = "1.27"
@@ -15,8 +14,6 @@ GOTOOLCHAIN = "local"
 # Local dev database for dbmate/sqlc/pitchfork postgres (trust auth, loopback
 # only). See pitchfork.toml [daemons.postgres].
 DATABASE_URL = "postgres://postgres@localhost:5432/golink?sslmode=disable"
-# dbmate keeps PG in this file; default ./db/migrations is ours.
-DBMATE_SCHEMA_FILE = "/dev/null"
 
 [tasks.build]
 description = "Build the golink binary into ./build/"
@@ -37,9 +34,24 @@ run = "pitchfork start golink"
 description = "Stop all local pitchfork daemons (postgres, codegen, dev server)"
 run = "pitchfork stop --local"
 
+# Create the dev postgres database if missing. `golink migrate up` refuses
+# to create databases (fail-fast prod semantics), so dev bootstraps here.
+[tasks."db:create"]
+description = "Create the dev golink database if it does not exist"
+run = """
+psql -h localhost -U postgres -d postgres -tAc "select 1 from pg_database where datname = 'golink'" | grep -q 1 || createdb -h localhost -U postgres golink
+"""
+
+# Same codepath as prod: migrations ship embedded in the binary and apply
+# through cmd/migrate.go. No standalone dbmate in this repository.
 [tasks."migrate:up"]
-description = "Apply dbmate migrations to the dev postgres (pitchfork); idempotent"
-run = "dbmate up"
+description = "Apply pending migrations to the dev postgres (pitchfork); idempotent"
+depends = ["db:create"]
+run = "go run . migrate up"
+
+[tasks."db:status"]
+description = "Show migration status against the dev postgres; exits 1 when pending"
+run = "go run . migrate status"
 
 [tasks."gen:templ"]
 description = "Regenerate Go components (www/*_templ.go) from www/*.templ via templ"
