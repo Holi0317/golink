@@ -23,6 +23,7 @@ func startCmd() *cli.Command {
 	var flagHost string
 	var flagPort uint16
 	var flagDatabase string
+	var flagTrustedHops uint
 
 	return &cli.Command{
 		Name:  "start",
@@ -51,6 +52,16 @@ func startCmd() *cli.Command {
 				Required:    true,
 				Destination: &flagDatabase,
 			},
+			&cli.UintFlag{
+				// Number of trusted proxy hops in front of golink (HOPS
+				// env). 0 — the default, a direct connection — trusts no
+				// X-Forwarded-For. With a single caddy in front, use 1.
+				Name:        "trusted-hops",
+				Usage:       "trusted proxy hops in front of golink (0 = direct)",
+				Value:       0,
+				Sources:     cli.EnvVars("TRUSTED_HOPS"),
+				Destination: &flagTrustedHops,
+			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
 			pool, err := server.NewPool(ctx, flagDatabase)
@@ -72,6 +83,7 @@ func startCmd() *cli.Command {
 				pool,
 				middleware.ClogProvider(clog.FromContext(ctx)),
 				middleware.RequestLogger(),
+				middleware.RealIP(flagTrustedHops),
 			)}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()
