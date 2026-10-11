@@ -1,0 +1,17 @@
+# ko build configuration for golink (golink-8m4).
+#
+# Images are published to GHCR in CI on main pushes (see
+# .github/workflows/ci.yml). Local smoke test without a daemon:
+#
+#   DOCKER_CONFIG=/tmp/ko-dockercfg ko build --push=false --oci-layout-path /tmp/ko-test
+#
+# The server is a static Go binary (templ templates are compiled in) so a
+# minimal runtime base suffices; PORT/DATABASE_URL are provided at runtime.
+defaultBaseImage: cgr.dev/chainguard/static:latest
+builds:
+  - id: golink
+    main: .
+    env:
+      - CGO_ENABLED=0
+    ldflags:
+      - -s -w
