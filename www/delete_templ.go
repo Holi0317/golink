@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/holi0317/golink/db"
+	"github.com/holi0317/golink/db/generated"
 )
 
 // DeleteConfirm asks for confirmation before removing a link; deletions are

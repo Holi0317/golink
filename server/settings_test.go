@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/holi0317/golink/db"
+	"github.com/holi0317/golink/db/generated"
 )
 
 // settingsGET issues a GET against the composed handler and returns the
