@@ -23,6 +23,7 @@ func startCmd() *cli.Command {
 	var flagHost string
 	var flagPort uint16
 	var flagDatabase string
+	var flagTailscaleIdentity bool
 
 	return &cli.Command{
 		Name:  "start",
@@ -51,6 +52,19 @@ func startCmd() *cli.Command {
 				Required:    true,
 				Destination: &flagDatabase,
 			},
+			&cli.BoolFlag{
+				// Derive requester identity from the Tailscale-User-*
+				// headers injected by tailscale serve (TAILSCALE_ENABLED
+				// env, docs https://tailscale.com/s/serve-headers). Only
+				// enable when the ONLY way to reach golink terminates at
+				// tailscale serve; serve strips client-forged identity
+				// headers, but nothing downstream does. golink already
+				// default-binds to 127.0.0.1, which keeps this safe.
+				Name:        "tailscale-identity",
+				Usage:       "trust Tailscale-User-* headers injected by tailscale serve",
+				Sources:     cli.EnvVars("TAILSCALE_ENABLED"),
+				Destination: &flagTailscaleIdentity,
+			},
 		},
 		Action: func(ctx context.Context, c *cli.Command) error {
 			pool, err := server.NewPool(ctx, flagDatabase)
@@ -68,10 +82,19 @@ func startCmd() *cli.Command {
 			}
 			clog.FromContext(ctx).Info("golink listening", "addr", ln.Addr().String())
 
-			srv := &http.Server{Handler: server.New(
-				pool,
+			var mws []middleware.Middleware
+			mws = append(mws,
 				middleware.ClogProvider(clog.FromContext(ctx)),
 				middleware.RequestLogger(),
+			)
+			if flagTailscaleIdentity {
+				// Prepend so TailscaleIdentity wraps the whole chain and
+				// identity is known to everything downstream.
+				mws = append([]middleware.Middleware{middleware.TailscaleIdentity()}, mws...)
+			}
+			srv := &http.Server{Handler: server.New(
+				pool,
+				mws...,
 			)}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()
