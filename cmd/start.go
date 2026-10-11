@@ -15,6 +15,7 @@ import (
 	"github.com/chainguard-dev/clog"
 	"github.com/urfave/cli/v3"
 
+	"github.com/holi0317/golink/middleware"
 	"github.com/holi0317/golink/server"
 )
 
@@ -69,8 +70,8 @@ func startCmd() *cli.Command {
 
 			srv := &http.Server{Handler: server.New(
 				pool,
-				server.ClogProvider(clog.FromContext(ctx)),
-				server.RequestLogger(),
+				middleware.ClogProvider(clog.FromContext(ctx)),
+				middleware.RequestLogger(),
 			)}
 			serveErr := make(chan error, 1)
 			go func() { serveErr <- srv.Serve(ln) }()

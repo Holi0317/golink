@@ -1,4 +1,5 @@
-package server
+// Package middleware provides the golink HTTP middlewares.
+package middleware
 
 import (
 	"net/http"
@@ -7,12 +8,15 @@ import (
 	"github.com/chainguard-dev/clog"
 )
 
+// Middleware wraps an http.Handler with cross-cutting behavior.
+type Middleware = func(http.Handler) http.Handler
+
 // ClogProvider returns a middleware that layers the base logger onto each
 // request context, so handlers can read it back with clog.FromContext(r.Context()).
 //
 // The incoming request context is preserved, so client-disconnect cancellation
 // keeps working; only the logger is layered on top.
-func ClogProvider(logger *clog.Logger) func(http.Handler) http.Handler {
+func ClogProvider(logger *clog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r.WithContext(clog.WithLogger(r.Context(), logger)))
@@ -23,7 +27,7 @@ func ClogProvider(logger *clog.Logger) func(http.Handler) http.Handler {
 // RequestLogger returns a slog-based middleware that emits one record per
 // request with method, path, response status, and duration.
 //
-// It reads the contextual logger from the request context, so in New's
+// It reads the contextual logger from the request context, so in the
 // middleware list it must come after ClogProvider (which sits outermost and
 // installs the logger).
 func RequestLogger() Middleware {

@@ -1,4 +1,6 @@
-package server
+// Package settings implements the golink settings app: listing, creating,
+// editing, and deleting go links.
+package settings
 
 import (
 	"errors"
@@ -15,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/holi0317/golink/db/generated"
+	"github.com/holi0317/golink/redirect"
 	"github.com/holi0317/golink/www"
 )
 
@@ -22,30 +25,37 @@ import (
 // until tailscale-based identity lands (golink-ux4).
 const placeholderCreatedBy = "unknown"
 
-// settingsMux builds the routes of the settings app under /_. It is its own
-// mux so routing happens with plain HandleFunc patterns, free of the
-// top-level redirect service. Path values are link ids.
+// App carries the dependencies the settings handlers need. Handlers are
+// methods on it, so more dependencies (templ components and the like) are a
+// new field plus constructor wiring, and tests can build an App directly.
+type App struct {
+	Queries *db.Queries
+}
+
+// Mux builds the routes of the settings app under /_. It is its own mux so
+// routing happens with plain HandleFunc patterns, free of the top-level
+// redirect service. Path values are link ids.
 //
 // Routes:
-//   - GET  /_/:            list + create form
-//   - POST /_/:            create link
-//   - GET  /_/edit/{id}:   edit form
-//   - POST /_/edit/{id}:   update link
-//   - GET  /_/delete/{id}: delete confirmation
-//   - POST /_/delete/{id}: delete link
-//   - anything else:       not-found page
-func (s *Server) settingsMux() *http.ServeMux {
+//   - GET  /:           list + create form
+//   - POST /:           create link
+//   - GET  /edit/{id}:  edit form
+//   - POST /edit/{id}:  update link
+//   - GET  /delete/{id}: delete confirmation
+//   - POST /delete/{id}: delete link
+//   - anything else:    not-found page
+func (a *App) Mux() *http.ServeMux {
 	settings := http.NewServeMux()
-	settings.HandleFunc("GET /{$}", s.listPage)
-	settings.HandleFunc("POST /{$}", s.create)
-	settings.HandleFunc("GET /edit/{id}", s.editForm)
-	settings.HandleFunc("POST /edit/{id}", s.update)
-	settings.HandleFunc("GET /delete/{id}", s.deleteConfirm)
-	settings.HandleFunc("POST /delete/{id}", s.destroy)
+	settings.HandleFunc("GET /{$}", a.listPage)
+	settings.HandleFunc("POST /{$}", a.create)
+	settings.HandleFunc("GET /edit/{id}", a.editForm)
+	settings.HandleFunc("POST /edit/{id}", a.update)
+	settings.HandleFunc("GET /delete/{id}", a.deleteConfirm)
+	settings.HandleFunc("POST /delete/{id}", a.destroy)
 	// Unmatched paths inside the app (unknown page, malformed id) get the
 	// not-found page instead of ServeMux's plain one.
-	settings.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { notFoundStatus(w, r, "") })
-	settings.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) { notFoundStatus(w, r, "") })
+	settings.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r, "") })
+	settings.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r, "") })
 	return settings
 }
 
@@ -83,7 +93,7 @@ func validateTargetInput(rawTarget, rawDefault string) (targetURL, targetDefault
 	if _, ok := validTargetURL(rawTarget); !ok {
 		return "", "", "target must be an http(s) URL (e.g. https://example.com/hello)"
 	}
-	if _, ok := parseTemplate(rawTarget); !ok {
+	if _, ok := redirect.ParseTemplate(rawTarget); !ok {
 		return "", "", "target braces are invalid: template placeholders must be {0}, {1}, … (position after the slug), and stray braces are rejected"
 	}
 	targetURL, targetDefault = rawTarget, rawDefault
@@ -91,7 +101,7 @@ func validateTargetInput(rawTarget, rawDefault string) (targetURL, targetDefault
 		if _, ok := validTargetURL(rawDefault); !ok {
 			return "", "", "default location must be an http(s) URL"
 		}
-		if maxIdx, ok := parseTemplate(rawTarget); !ok || maxIdx < 0 {
+		if maxIdx, ok := redirect.ParseTemplate(rawTarget); !ok || maxIdx < 0 {
 			return "", "", "a default location only applies to template links (targets with {0}, {1}, … placeholders)"
 		}
 		if strings.ContainsAny(rawDefault, "{}") {
@@ -102,10 +112,10 @@ func validateTargetInput(rawTarget, rawDefault string) (targetURL, targetDefault
 }
 
 // listPage renders every stored link with the create form above it.
-func (s *Server) listPage(w http.ResponseWriter, r *http.Request) {
-	links, err := s.queries.ListLinks(r.Context())
+func (a *App) listPage(w http.ResponseWriter, r *http.Request) {
+	links, err := a.Queries.ListLinks(r.Context())
 	if err != nil {
-		s.fail(w, r, "listing links", err)
+		a.fail(w, r, "listing links", err)
 		return
 	}
 	templ.Handler(www.Index(links)).ServeHTTP(w, r)
@@ -113,23 +123,23 @@ func (s *Server) listPage(w http.ResponseWriter, r *http.Request) {
 
 // create stores a new link from the create form and redirects back to the
 // list. Duplicate slugs and malformed input answer the error page.
-func (s *Server) create(w http.ResponseWriter, r *http.Request) {
+func (a *App) create(w http.ResponseWriter, r *http.Request) {
 	log := clog.FromContext(r.Context())
 	if err := r.ParseForm(); err != nil {
-		s.reject(w, r, "malformed form submission", http.StatusBadRequest)
+		a.reject(w, r, "malformed form submission", http.StatusBadRequest)
 		return
 	}
 	slug := r.FormValue("slug")
 	targetURL, targetDefault, rejectMsg := validateTargetInput(r.FormValue("target_url"), r.FormValue("default_url"))
 	if !validSlug(slug) {
-		s.reject(w, r, "slugs may only contain letters, digits, dashes, dots, underscores, and tildes (and may not be “_”)", http.StatusBadRequest)
+		a.reject(w, r, "slugs may only contain letters, digits, dashes, dots, underscores, and tildes (and may not be “_”)", http.StatusBadRequest)
 		return
 	}
 	if rejectMsg != "" {
-		s.reject(w, r, rejectMsg, http.StatusBadRequest)
+		a.reject(w, r, rejectMsg, http.StatusBadRequest)
 		return
 	}
-	if _, err := s.queries.CreateLink(r.Context(), db.CreateLinkParams{
+	if _, err := a.Queries.CreateLink(r.Context(), db.CreateLinkParams{
 		Slug:       slug,
 		TargetUrl:  targetURL,
 		DefaultUrl: targetDefault,
@@ -137,7 +147,7 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			s.reject(w, r, fmt.Sprintf("the go link %q already exists", slug), http.StatusBadRequest)
+			a.reject(w, r, fmt.Sprintf("the go link %q already exists", slug), http.StatusBadRequest)
 			return
 		}
 		log.Errorf("creating link %q: %v", slug, err)
@@ -148,8 +158,8 @@ func (s *Server) create(w http.ResponseWriter, r *http.Request) {
 }
 
 // editForm renders the edit form for a stored link.
-func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
-	link, ok := s.byID(w, r, r.PathValue("id"))
+func (a *App) editForm(w http.ResponseWriter, r *http.Request) {
+	link, ok := a.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
@@ -159,22 +169,22 @@ func (s *Server) editForm(w http.ResponseWriter, r *http.Request) {
 // update records a new target URL for the link and redirects back to the
 // list. Rows are addressed by id; the slug is what gets published, so it is
 // never an edit handle.
-func (s *Server) update(w http.ResponseWriter, r *http.Request) {
+func (a *App) update(w http.ResponseWriter, r *http.Request) {
 	log := clog.FromContext(r.Context())
-	link, ok := s.byID(w, r, r.PathValue("id"))
+	link, ok := a.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		s.reject(w, r, "malformed form submission", http.StatusBadRequest)
+		a.reject(w, r, "malformed form submission", http.StatusBadRequest)
 		return
 	}
 	targetURL, targetDefault, rejectMsg := validateTargetInput(r.FormValue("target_url"), r.FormValue("default_url"))
 	if rejectMsg != "" {
-		s.reject(w, r, rejectMsg, http.StatusBadRequest)
+		a.reject(w, r, rejectMsg, http.StatusBadRequest)
 		return
 	}
-	if _, err := s.queries.UpdateLink(r.Context(), db.UpdateLinkParams{
+	if _, err := a.Queries.UpdateLink(r.Context(), db.UpdateLinkParams{
 		ID:         link.ID,
 		TargetUrl:  targetURL,
 		DefaultUrl: targetDefault,
@@ -187,8 +197,8 @@ func (s *Server) update(w http.ResponseWriter, r *http.Request) {
 }
 
 // deleteConfirm renders the irreversible-deletion warning.
-func (s *Server) deleteConfirm(w http.ResponseWriter, r *http.Request) {
-	link, ok := s.byID(w, r, r.PathValue("id"))
+func (a *App) deleteConfirm(w http.ResponseWriter, r *http.Request) {
+	link, ok := a.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
@@ -196,13 +206,13 @@ func (s *Server) deleteConfirm(w http.ResponseWriter, r *http.Request) {
 }
 
 // destroy removes the link row and redirects back to the list.
-func (s *Server) destroy(w http.ResponseWriter, r *http.Request) {
+func (a *App) destroy(w http.ResponseWriter, r *http.Request) {
 	log := clog.FromContext(r.Context())
-	link, ok := s.byID(w, r, r.PathValue("id"))
+	link, ok := a.byID(w, r, r.PathValue("id"))
 	if !ok {
 		return
 	}
-	if _, err := s.queries.DeleteLink(r.Context(), link.ID); err != nil {
+	if _, err := a.Queries.DeleteLink(r.Context(), link.ID); err != nil {
 		log.Errorf("deleting link %d: %v", link.ID, err)
 		http.Error(w, "golink: storage error", http.StatusInternalServerError)
 		return
@@ -213,16 +223,16 @@ func (s *Server) destroy(w http.ResponseWriter, r *http.Request) {
 // byID fetches one link for the settings app. A miss — unknown or malformed
 // id — renders the not-found page and returns false, so callers can stop;
 // other storage errors answer 500 and also return false.
-func (s *Server) byID(w http.ResponseWriter, r *http.Request, rawID string) (db.Link, bool) {
+func (a *App) byID(w http.ResponseWriter, r *http.Request, rawID string) (db.Link, bool) {
 	log := clog.FromContext(r.Context())
 	id, err := strconv.ParseInt(rawID, 10, 32)
 	if err != nil {
-		notFoundStatus(w, r, "")
+		renderNotFound(w, r, "")
 		return db.Link{}, false
 	}
-	link, err := s.queries.GetLinkByID(r.Context(), int32(id))
+	link, err := a.Queries.GetLinkByID(r.Context(), int32(id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		notFoundStatus(w, r, "")
+		renderNotFound(w, r, "")
 		return db.Link{}, false
 	}
 	if err != nil {
@@ -234,18 +244,18 @@ func (s *Server) byID(w http.ResponseWriter, r *http.Request, rawID string) (db.
 }
 
 // fail logs a storage failure and answers a plain 500.
-func (s *Server) fail(w http.ResponseWriter, r *http.Request, what string, err error) {
+func (a *App) fail(w http.ResponseWriter, r *http.Request, what string, err error) {
 	clog.FromContext(r.Context()).Errorf("%s: %v", what, err)
 	http.Error(w, "golink: storage error", http.StatusInternalServerError)
 }
 
 // reject answers the error page with a user-facing message and status.
-func (s *Server) reject(w http.ResponseWriter, r *http.Request, message string, status int) {
+func (a *App) reject(w http.ResponseWriter, r *http.Request, message string, status int) {
 	templ.Handler(www.Error(message), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
-// notFoundStatus renders the not-found page. An empty slug stands for "no
+// renderNotFound renders the not-found page. An empty slug stands for "no
 // slug here" (unknown page, malformed id).
-func notFoundStatus(w http.ResponseWriter, r *http.Request, slug string) {
+func renderNotFound(w http.ResponseWriter, r *http.Request, slug string) {
 	templ.Handler(www.NotFound(slug), templ.WithStatus(http.StatusNotFound)).ServeHTTP(w, r)
 }

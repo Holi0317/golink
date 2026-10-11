@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/holi0317/golink/db/generated"
+	"github.com/holi0317/golink/middleware"
 )
 
 // testPool opens a pool against the database named by DATABASE_URL; the test
@@ -138,7 +139,7 @@ func TestNewComposesMiddlewareInOrder(t *testing.T) {
 	pool := testPool(t)
 
 	var order []string
-	rec := func(name string) Middleware {
+	rec := func(name string) middleware.Middleware {
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				order = append(order, name)
