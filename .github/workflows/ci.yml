@@ -90,7 +90,10 @@ jobs:
       # ko-build/setup-ko v0.10
       - uses: ko-build/setup-ko@61b4d1d396f5b2e7d6bb6fefdce3dc38d1a13445
 
+      # Registries only accept lowercase paths (the ko error says exactly
+      # that for `Holi0317/golink`); GHCR serves the user as lowercase.
+      - name: Lowercase repository name for the image path
+        run: echo "KO_DOCKER_REPO=ghcr.io/$(tr '[:upper:]' '[:lower:]' <<< '${{ github.repository }}')" >> "$GITHUB_ENV"
+
       - name: ko build
-        env:
-          KO_DOCKER_REPO: ghcr.io/${{ github.repository }}
         run: ko build --platform=linux/amd64,linux/arm64 --tags=latest,sha-${{ github.sha }}
