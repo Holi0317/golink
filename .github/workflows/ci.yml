@@ -107,8 +107,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # ko-build/setup-ko v0.10
-      - uses: ko-build/setup-ko@61b4d1d396f5b2e7d6bb6fefdce3dc38d1a13445
+      # jdx/mise-action v5.1.1; same tool set as the test job — ko comes from
+      # mise.lock, keeping CI and local dev on identical tool versions.
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca
 
       - name: ko build
         run: |
