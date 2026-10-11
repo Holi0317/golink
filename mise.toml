@@ -51,5 +51,5 @@ description = "Regenerate Go components (www/*_templ.go) from www/*.templ via te
 run = "templ generate"
 
 [tasks.sqlc-generate]
-description = "Regenerate Go DB code (server/db) from db/queries + db/migrations via sqlc"
+description = "Regenerate Go DB code (db/generated) from db/queries + db/migrations via sqlc"
 run = "sqlc generate"
