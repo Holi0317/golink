@@ -54,8 +54,8 @@ func (a *App) Mux() *http.ServeMux {
 	settings.HandleFunc("POST /delete/{id}", a.destroy)
 	// Unmatched paths inside the app (unknown page, malformed id) get the
 	// not-found page instead of ServeMux's plain one.
-	settings.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r, "") })
-	settings.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r, "") })
+	settings.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r) })
+	settings.HandleFunc("POST /", func(w http.ResponseWriter, r *http.Request) { renderNotFound(w, r) })
 	return settings
 }
 
@@ -226,12 +226,12 @@ func (a *App) byID(w http.ResponseWriter, r *http.Request, rawID string) (db.Lin
 	log := clog.FromContext(r.Context())
 	id, err := strconv.ParseInt(rawID, 10, 32)
 	if err != nil {
-		renderNotFound(w, r, "")
+		renderNotFound(w, r)
 		return db.Link{}, false
 	}
 	link, err := a.Queries.GetLinkByID(r.Context(), int32(id))
 	if errors.Is(err, pgx.ErrNoRows) {
-		renderNotFound(w, r, "")
+		renderNotFound(w, r)
 		return db.Link{}, false
 	}
 	if err != nil {
@@ -253,8 +253,9 @@ func (a *App) reject(w http.ResponseWriter, r *http.Request, message string, sta
 	templ.Handler(www.Error(message), templ.WithStatus(status)).ServeHTTP(w, r)
 }
 
-// renderNotFound renders the not-found page. An empty slug stands for "no
-// slug here" (unknown page, malformed id).
-func renderNotFound(w http.ResponseWriter, r *http.Request, slug string) {
-	templ.Handler(www.NotFound(slug), templ.WithStatus(http.StatusNotFound)).ServeHTTP(w, r)
+// renderNotFound answers the settings app's 404 page: the URL is not a
+// known app page (unknown path, malformed id). A missed go-link slug gets
+// www.NotFound's create-prompt page instead, via redirect.Handler.
+func renderNotFound(w http.ResponseWriter, r *http.Request) {
+	templ.Handler(www.PageNotFound(), templ.WithStatus(http.StatusNotFound)).ServeHTTP(w, r)
 }

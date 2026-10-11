@@ -1,21 +1,29 @@
 package www
 
-// NotFound is the miss page: the requested slug has no entry. It asks
-// whether the visitor wants to create the go link.
+// NotFound is the miss page for the redirect service: the requested slug
+// has no entry. It asks whether the visitor wants to create the go link.
 templ NotFound(slug string) {
 	@Layout("not found — golink", notFoundContent(slug))
 }
 
 templ notFoundContent(slug string) {
-	if slug != "" {
-		<h1>No go link for “{ slug }” yet</h1>
-	} else {
-		<h1>No go link here</h1>
-	}
+	<h1>No go link for “{ slug }” yet</h1>
 	// The slug rides in the query string so the settings app can pre-fill
 	// the create form (see Index).
 	<p>
 		Do you want to create a new go link for it?
 		<a href={ createURL(slug) }>Create go link now</a>.
 	</p>
+}
+
+// PageNotFound is the settings app's own 404: the URL is not part of the
+// app at all (e.g. /_/aaaa), as opposed to a missed go-link slug.
+templ PageNotFound() {
+	@Layout("not found — golink", pageNotFoundContent())
+}
+
+templ pageNotFoundContent() {
+	<h1>Page not found</h1>
+	<p>There is no page at this address. Settings pages live under <code>/_/</code>.</p>
+	<p><a href="/_/">Back to all links</a></p>
 }
