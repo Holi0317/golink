@@ -1,5 +1,6 @@
 -- Queries for the links table. Generated Go code lives in server/db
--- (golink-1yx); run `mise run sqlc-generate` after editing this file.
+-- (golink-1yx); run `pitchfork start gen-sqlc` (or `mise run gen:sqlc`)
+-- after editing this file.
 --
 -- Redirect resolution is by slug; edits and deletes target the id, since the
 -- slug is what gets published and should not be a edit handle.

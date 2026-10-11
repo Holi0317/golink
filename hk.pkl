@@ -1,10 +1,37 @@
 amends "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Config.pkl"
 import "package://github.com/jdx/hk/releases/download/v2.5.0/hk@2.5.0#/Builtins.pkl"
 
-// Keep this list minimal (golink-xtd): gofmt + golangci-lint before commit.
-// Tests stay out of pre-commit and run in CI instead — full `go test ./...`
-// is too slow for every commit; `mise run test` covers it locally on demand.
+// Keep this list minimal (golink-xtd): codegen + gofmt + golangci-lint before
+// commit. Tests stay out of pre-commit and run in CI instead — full
+// `go test ./...` is too slow for every commit; `mise run test` covers it
+// locally on demand.
+
+// Hook tool env: `hk install` reads the local git config `hk.mise = true`
+// (set once per checkout) and adds mise shims to the hook's PATH, so steps
+// see mise-managed tools (go, sqlc, templ, ...) even outside a dev shell.
+// hk.pkl itself has no `mise` property in hk 2.5.0.
+
 steps = new Mapping {
-    ["go_fmt"] = Builtins.go_fmt
-    ["golangci_lint"] = Builtins.golangci_lint
+    // Regenerate committed generated code (golink-6c2) so stale output never
+    // gets committed. The commands live in mise.toml ("gen:sqlc",
+    // "gen:templ") — the single home of the generate definitions, shared with
+    // the pitchfork oneshot daemons. Each step skips unless an input file is
+    // staged; `stage` also adds regenerated outputs to the index.
+    ["sqlc_gen"] {
+        glob = List("sqlc.yaml", "db/queries/**", "db/migrations/**")
+        fix = "mise run gen:sqlc"
+        stage = List("db/queries/**", "db/migrations/**", "db/generated/**")
+    }
+    ["templ_gen"] {
+        glob = List("www/*.templ")
+        fix = "mise run gen:templ"
+        stage = List("www/*.templ", "www/*_templ.go")
+    }
+    // Format and lint after codegen so regenerated files are covered too.
+    ["go_fmt"] = (Builtins.go_fmt) {
+        depends = List("sqlc_gen", "templ_gen")
+    }
+    ["golangci_lint"] = (Builtins.golangci_lint) {
+        depends = List("sqlc_gen", "templ_gen")
+    }
 }

@@ -44,12 +44,12 @@ run = "dbmate up"
 description = "Roll back the last dbmate migration on the dev postgres"
 run = "dbmate down"
 
-[tasks.templ-generate]
+[tasks."gen:templ"]
 description = "Regenerate Go components (www/*_templ.go) from www/*.templ via templ"
 # Generated *_templ.go files are committed: `go build` needs them, and
 # committing keeps builds and CI free of a codegen step.
 run = "templ generate"
 
-[tasks.sqlc-generate]
+[tasks."gen:sqlc"]
 description = "Regenerate Go DB code (db/generated) from db/queries + db/migrations via sqlc"
 run = "sqlc generate"

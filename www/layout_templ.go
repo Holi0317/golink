@@ -7,7 +7,9 @@
 
 // committed: `go build` needs it, and committing keeps the build free of a
 
-// codegen step. Regenerate after editing with `mise run templ-generate`.
+// codegen step. Regenerate after editing with `pitchfork start gen-templ`
+
+// (or `mise run gen:templ`).
 
 package www
 
@@ -44,7 +46,7 @@ func Layout(title string, content templ.Component) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `www/layout.templ`, Line: 12, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `www/layout.templ`, Line: 13, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {

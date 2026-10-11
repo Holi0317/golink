@@ -12,6 +12,7 @@ if [ ! -f .dev/pg/PG_VERSION ]; then
 fi
 exec postgres -D .dev/pg -p $PORT -c listen_addresses=127.0.0.1
 """
+mise = true
 # Local dev convention: 5432, bumped one by one if taken.
 port = { expect = [5432], bump = 10 }
 ready_output = "ready to accept connections"
@@ -19,7 +20,13 @@ ready_output = "ready to accept connections"
 [daemons.golink]
 # Rebuild then run; exec makes the tracked PID the server itself so stop
 # signals reach it and the 10s graceful drain works.
-run = "mise x -- go run main.go start"
+# mise = true wraps the command in `mise x --` so go comes from mise even
+# when the supervisor has no dev shell PATH.
+run = "go run main.go start"
+mise = true
+# The server fails fast when the database is unreachable; start postgres
+# first so `pitchfork start golink` (and `mise run dev`) boots both.
+depends = ["postgres"]
 port = 8080
 # slog line emitted only after the listener is bound: real readiness, not a
 # TCP half-open guess.
@@ -36,3 +43,17 @@ watch = [
 # A failing compile stops the daemon; retry forever so the next good save
 # brings it back without manual intervention.
 retry = true
+
+# One-shot codegen tasks: run once and exit 0 as `completed`. They call the
+# mise tasks (mise.toml), the single home of the actual generate commands;
+# hk's pre-commit invokes the same tasks. Trigger manually, e.g.
+# `pitchfork start gen-sqlc`.
+[daemons.gen-sqlc]
+run = "mise run gen:sqlc"
+mise = true
+oneshot = true
+
+[daemons.gen-templ]
+run = "mise run gen:templ"
+mise = true
+oneshot = true
