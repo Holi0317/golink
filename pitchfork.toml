@@ -19,7 +19,7 @@ ready_output = "ready to accept connections"
 [daemons.golink]
 # Rebuild then run; exec makes the tracked PID the server itself so stop
 # signals reach it and the 10s graceful drain works.
-run = "mise x -- go build -o ./build/golink . && exec ./build/golink start --port $PORT"
+run = "mise x -- go run main.go start"
 port = 8080
 # slog line emitted only after the listener is bound: real readiness, not a
 # TCP half-open guess.
