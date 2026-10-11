@@ -1,0 +1,64 @@
+# CI for golink (golink-djs).
+#
+# Lint/test run on every push to main and every PR. Images are built with ko
+# (ko.yaml) and pushed to GHCR only on main pushes. Tool versions for
+# golangci-lint live in mise.toml; keep the action's `version` in sync.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          # Keep in sync with mise.toml [tools].golangci-lint.
+          version: 2.14.0
+
+      - run: go test ./...
+
+      - name: Install codegen tools (templ, sqlc)
+        uses: jdx/mise-action@v5
+
+      - name: Generated code is fresh (templ, sqlc)
+        run: |
+          templ generate
+          sqlc generate
+          git diff --exit-code -- www db
+
+  image:
+    name: Build & push image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: ko-build/setup-ko@v0.10
+
+      - name: ko build
+        env:
+          KO_DOCKER_REPO: ghcr.io/${{ github.repository }}
+        run: ko build --platform=linux/amd64,linux/arm64 --tags=latest,sha-${{ github.sha }}
