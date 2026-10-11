@@ -6,15 +6,17 @@ import (
 
 // Index lists every link with its slug and target URL, and carries the
 // create form at the top. Everyone can edit every link (blind trust).
-templ Index(links []db.Link) {
-	@Layout("golink — settings", indexContent(links))
+// prefilledSlug, when non-empty, seeds the create form's slug field — it
+// comes from the 404 page's "create" button via ?slug=….
+templ Index(links []db.Link, prefilledSlug string) {
+	@Layout("golink — settings", indexContent(links, prefilledSlug))
 }
 
-templ indexContent(links []db.Link) {
+templ indexContent(links []db.Link, prefilledSlug string) {
 	<h2>Create a go link</h2>
 	<form method="post" action="/_/">
 		<label for="slug">Slug</label>
-		<input id="slug" name="slug" required placeholder="greet" pattern="[^/]+"/>
+		<input id="slug" name="slug" required placeholder="greet" pattern="[^/]+" value={ prefilledSlug }/>
 		<label for="target_url">Target URL</label>
 		<input id="target_url" name="target_url" type="url" required placeholder="https://example.com/hello"/>
 		<p>{ templateHint }</p>

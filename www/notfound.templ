@@ -12,8 +12,10 @@ templ notFoundContent(slug string) {
 	} else {
 		<h1>No go link here</h1>
 	}
+	// The slug rides in the query string so the settings app can pre-fill
+	// the create form (see Index).
 	<p>
 		Do you want to create a new go link for it?
-		<a href="/_/">Create it in the settings</a>.
+		<a href={ createURL(slug) }>Create go link now</a>.
 	</p>
 }

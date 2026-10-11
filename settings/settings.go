@@ -118,7 +118,7 @@ func (a *App) listPage(w http.ResponseWriter, r *http.Request) {
 		a.fail(w, r, "listing links", err)
 		return
 	}
-	templ.Handler(www.Index(links)).ServeHTTP(w, r)
+	templ.Handler(www.Index(links, r.FormValue("slug"))).ServeHTTP(w, r)
 }
 
 // create stores a new link from the create form and redirects back to the
