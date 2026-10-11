@@ -7,6 +7,7 @@ require (
 	github.com/amacneil/dbmate/v2 v2.36.0
 	github.com/chainguard-dev/clog v1.8.1
 	github.com/jackc/pgx/v5 v5.11.0
+	github.com/peterldowns/pgtestdb v0.1.1
 	github.com/urfave/cli/v3 v3.14.0
 )
 

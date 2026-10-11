@@ -2,22 +2,37 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	// pgtestdb provisions per-test template-cloned databases; the stdlib
+	// pgx driver backs its database/sql connections.
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/peterldowns/pgtestdb"
 
 	"github.com/holi0317/golink/db/generated"
+	"github.com/holi0317/golink/db/migrations"
 	"github.com/holi0317/golink/middleware"
 )
 
-// testPool opens a pool against the database named by DATABASE_URL; the test
-// skips when the variable is not exported (mise exports it for local runs
-// against the pitchfork dev postgres).
+// testPool provisions a fresh postgres database for this test. pgtestdb
+// migrates a template database once (embedded dbmate migrations via the
+// dbmatemigrator adapter) and clones it per test, so every test starts from
+// the exact prod schema with no cross-test state; the instance is dropped on
+// success. Server coordinates come from DATABASE_URL (mise exports it
+// locally against the pitchfork dev postgres; CI provides a postgres
+// service). Skips when DATABASE_URL is not exported.
 func testPool(t *testing.T) *pgxpool.Pool {
 	t.Helper()
 
@@ -25,17 +40,75 @@ func testPool(t *testing.T) *pgxpool.Pool {
 	if databaseURL == "" {
 		t.Skip("DATABASE_URL not set; skipping database-backed test")
 	}
-	pool, err := NewPool(context.Background(), databaseURL)
+	u, err := url.Parse(databaseURL)
 	if err != nil {
-		t.Fatalf("connecting to database: %v", err)
+		t.Fatalf("parsing DATABASE_URL: %v", err)
+	}
+	port := u.Port()
+	if port == "" {
+		port = "5432"
+	}
+	password, _ := u.User.Password()
+	conf := pgtestdb.Config{
+		// pgx (github.com/jackc/pgx/v5/stdlib) registered below.
+		DriverName: "pgx",
+		User:       u.User.Username(),
+		Password:   password,
+		Host:       u.Hostname(),
+		Port:       port,
+		Options:    "sslmode=disable",
+	}
+	// dbmateMigrator reuses the exact dbmate setup prod uses; hash covers
+	// every embedded migration file so the template is rebuilt only when
+	// migrations change.
+	cfg := pgtestdb.Custom(t, conf, dbmateMigrator{})
+	pool, err := pgxpool.New(context.Background(), cfg.URL())
+	if err != nil {
+		t.Fatalf("connecting to test database: %v", err)
 	}
 	t.Cleanup(pool.Close)
 	return pool
 }
 
-// seedLink inserts a link row and schedules its removal, so tests never leak
-// state into the developer database. It returns the created row, so tests
-// can address it by id.
+// dbmateMigrator implements pgtestdb.Migrator on top of db/migrations.New —
+// the same embedded dbmate engine the prod `golink migrate` command uses.
+type dbmateMigrator struct{}
+
+// Hash derives the template database name from the migration contents, so
+// the template is re-migrated only when migrations change.
+func (dbmateMigrator) Hash() (string, error) {
+	entries, err := fs.ReadDir(migrations.FS, ".")
+	if err != nil {
+		return "", fmt.Errorf("listing embedded migrations: %w", err)
+	}
+	h := sha256.New()
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".sql") {
+			continue
+		}
+		sql, err := fs.ReadFile(migrations.FS, entry.Name())
+		if err != nil {
+			return "", fmt.Errorf("reading %s: %w", entry.Name(), err)
+		}
+		line := fmt.Sprintf("%s\x00%d\x00", entry.Name(), len(sql))
+		h.Write([]byte(line))
+		h.Write(sql)
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func (dbmateMigrator) Migrate(_ context.Context, _ *sql.DB, conf pgtestdb.Config) error {
+	db, err := migrations.New(conf.URL())
+	if err != nil {
+		return err
+	}
+	return db.Migrate()
+}
+
+// seedLink inserts a link row for a test to work with. The database the test
+// runs against is a per-test template clone, dropped when the test ends, so
+// no cleanup is needed. It returns the created row, so tests can address it
+// by id.
 func seedLink(t *testing.T, pool *pgxpool.Pool, slug, targetURL string) db.Link {
 	t.Helper()
 
@@ -48,7 +121,6 @@ func seedLink(t *testing.T, pool *pgxpool.Pool, slug, targetURL string) db.Link 
 	if err != nil {
 		t.Fatalf("seeding link %q: %v", slug, err)
 	}
-	t.Cleanup(func() { _, _ = queries.DeleteLink(context.Background(), link.ID) })
 	return link
 }
 

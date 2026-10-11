@@ -20,6 +20,22 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # mise.toml [env] exports DATABASE_URL through mise-action, so
+    # database-backed tests always attempt to connect. pgtestdb needs
+    # server coords only (it clones per-test template databases under the
+    # pgtdbuser role); localhost:5432 with trust auth matches DATABASE_URL.
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
     steps:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

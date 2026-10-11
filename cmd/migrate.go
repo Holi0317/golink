@@ -3,37 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"os"
 
-	"github.com/amacneil/dbmate/v2/pkg/dbmate"
-	_ "github.com/amacneil/dbmate/v2/pkg/driver/postgres"
 	"github.com/urfave/cli/v3"
 
 	"github.com/holi0317/golink/db/migrations"
 )
-
-// newDbmate builds a dbmate.DB running migrations from the embedded FS.
-// Dev (mise tasks) and prod run this exact codepath; the raw dbmate binary
-// was removed so it cannot drift (golink-cqh).
-func newDbmate(databaseURL string) (*dbmate.DB, error) {
-	u, err := url.Parse(databaseURL)
-	if err != nil {
-		return nil, fmt.Errorf("parsing database url: %w", err)
-	}
-	if u.Scheme == "" {
-		return nil, dbmate.ErrInvalidURL
-	}
-
-	db := dbmate.New(u)
-	db.FS = migrations.FS
-	db.MigrationsDir = []string{"."}
-	// Schema dumps are a dev-time concern dbmate used to cover via
-	// DBMATE_SCHEMA_FILE=/dev/null; we never want one.
-	db.AutoDumpSchema = false
-	db.Log = os.Stdout
-	return db, nil
-}
 
 func migrateCmd() *cli.Command {
 	var flagDatabase string
@@ -68,7 +42,7 @@ func migrateCmd() *cli.Command {
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					db, err := newDbmate(flagDatabase)
+					db, err := migrations.New(flagDatabase)
 					if err != nil {
 						return err
 					}
@@ -83,7 +57,7 @@ func migrateCmd() *cli.Command {
 					databaseFlag(),
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
-					db, err := newDbmate(flagDatabase)
+					db, err := migrations.New(flagDatabase)
 					if err != nil {
 						return err
 					}
