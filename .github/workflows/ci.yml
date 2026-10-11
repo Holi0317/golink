@@ -80,6 +80,26 @@ jobs:
       # actions/checkout v7.0.1
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
+      # ko build shells out to the Go toolchain, so warm the module and build
+      # caches just like the test job. Keys match so the image job reuses
+      # caches from earlier runs (caches written during this run are only
+      # visible after the run finishes).
+      # Go dependency (module) cache, keyed on go.sum (actions/cache v6.1.0).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/go/pkg/mod
+          key: go-deps-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-deps-${{ runner.os }}-
+
+      # Go compile cache, keyed on deps + tool set.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.cache/go-build
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.toml') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.toml') }}-
+            go-build-${{ runner.os }}-
+
       # docker/login-action v4.6.0
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:
