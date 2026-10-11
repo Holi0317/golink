@@ -25,7 +25,8 @@ ready_output = "ready to accept connections"
 run = "go run main.go start"
 mise = true
 # The server fails fast when the database is unreachable; start postgres
-# first so `pitchfork start golink` (and `mise run dev`) boots both.
+# first so `pitchfork start golink` (and `mise run dev`) boots everything:
+# postgres, the codegen oneshots (re-run on each start), then the server.
 depends = ["postgres", "gen-sqlc", "gen-templ"]
 port = 8080
 # slog line emitted only after the listener is bound: real readiness, not a

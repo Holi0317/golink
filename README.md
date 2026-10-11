@@ -8,7 +8,8 @@ Short-link service for the Tailscale fleet. See the `golink-*` beads (`bd` CLI) 
 mise run build   # build into ./build/
 mise run test    # go test ./...
 mise run lint    # golangci-lint
-mise run dev     # pitchfork daemon (rebuild + restart on save)
+mise run dev     # pitchfork: dev postgres + one-shot codegen + dev server
+mise run dev-stop # stop the above
 ```
 
 ## Codegen
@@ -20,11 +21,13 @@ the pitchfork oneshot daemons both call them, so there is a single definition.
 ```sh
 mise run gen:sqlc     # regenerate db/generated from db/queries + db/migrations
 mise run gen:templ    # regenerate www/*_templ.go from www/*.templ
-pitchfork run gen-sqlc   # same, as a pitchfork oneshot task
+pitchfork start gen-sqlc  # same, as a pitchfork oneshot task
 ```
 
-pre-commit regenerates automatically when a codegen input is staged, so stale
-generated code never gets committed.
+`mise run dev` runs the codegen oneshots before starting the server, so a
+fresh checkout builds without a manual regen. pre-commit regenerates
+automatically when a codegen input is staged, so stale generated code never
+gets committed.
 
 ## Git hooks
 

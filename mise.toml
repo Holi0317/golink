@@ -33,8 +33,8 @@ description = "Start the golink dev server (pitchfork daemon with reload on code
 run = "pitchfork start golink"
 
 [tasks.dev-stop]
-description = "Stop the golink dev server"
-run = "pitchfork stop --all --local"
+description = "Stop all local pitchfork daemons (postgres, codegen, dev server)"
+run = "pitchfork stop --local"
 
 [tasks."migrate:up"]
 description = "Apply dbmate migrations to the dev postgres (pitchfork); idempotent"
