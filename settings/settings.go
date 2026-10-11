@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/holi0317/golink/db/generated"
+	db "github.com/holi0317/golink/db/generated"
 	"github.com/holi0317/golink/redirect"
 	"github.com/holi0317/golink/www"
 )
@@ -145,8 +145,7 @@ func (a *App) create(w http.ResponseWriter, r *http.Request) {
 		DefaultUrl: targetDefault,
 		CreatedBy:  placeholderCreatedBy,
 	}); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" /* unique_violation */ {
 			a.reject(w, r, fmt.Sprintf("the go link %q already exists", slug), http.StatusBadRequest)
 			return
 		}
