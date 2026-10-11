@@ -47,13 +47,10 @@ jobs:
 
       - run: go test ./...
 
-      - run: golangci-lint run
-
-      - name: Generated code is fresh (templ, sqlc)
-        run: |
-          templ generate
-          sqlc generate
-          git diff --exit-code -- www db
+      # hk check covers golangci-lint, actionlint, and codegen freshness
+      # (templ/sqlc regenerate + fail on diff) — the same steps as the local
+      # pre-commit hook, so CI and commits never drift (hk.pkl).
+      - run: hk run check --all
 
   image:
     name: Build & push image
