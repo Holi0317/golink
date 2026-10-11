@@ -34,15 +34,11 @@ run = "pitchfork start golink"
 
 [tasks.dev-stop]
 description = "Stop the golink dev server"
-run = "pitchfork stop golink"
+run = "pitchfork stop --all --local"
 
-[tasks.migrate-up]
+[tasks."migrate:up"]
 description = "Apply dbmate migrations to the dev postgres (pitchfork); idempotent"
 run = "dbmate up"
-
-[tasks.migrate-down]
-description = "Roll back the last dbmate migration on the dev postgres"
-run = "dbmate down"
 
 [tasks."gen:templ"]
 description = "Regenerate Go components (www/*_templ.go) from www/*.templ via templ"

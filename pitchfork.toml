@@ -26,20 +26,14 @@ run = "go run main.go start"
 mise = true
 # The server fails fast when the database is unreachable; start postgres
 # first so `pitchfork start golink` (and `mise run dev`) boots both.
-depends = ["postgres"]
+depends = ["postgres", "gen-sqlc", "gen-templ"]
 port = 8080
 # slog line emitted only after the listener is bound: real readiness, not a
 # TCP half-open guess.
 ready_output = "golink listening"
 # Changed Go sources trigger a rebuild + full restart, debounced by the
 # supervisor. Keep patterns off build output and .git.
-watch = [
-  "**/*.go",
-  "**/*.templ",
-  "go.mod",
-  "go.sum",
-  "mise.toml",
-]
+watch = ["**/*.go", "**/*.templ", "go.mod", "go.sum", "mise.toml"]
 # A failing compile stops the daemon; retry forever so the next good save
 # brings it back without manual intervention.
 retry = true
