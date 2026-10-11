@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 
 	"github.com/a-h/templ"
@@ -47,23 +48,14 @@ func (s *Server) settingsMux() *http.ServeMux {
 	return settings
 }
 
-// validSlug reports whether the slug is usable as a go link: non-empty URL
-// unreserved characters only (letters, digits, and -._~), so the slug works
-// in a bare path. "_" is also excluded — it would shadow the settings app
-// at /_.
+// slugRe matches go-link slugs: non-empty URL unreserved characters only
+// (letters, digits, and -._~), so the slug works in a bare path.
+var slugRe = regexp.MustCompile(`^[a-zA-Z0-9._~-]+$`)
+
+// validSlug reports whether the slug is usable as a go link. "_" is also
+// excluded — it would shadow the settings app at /_.
 func validSlug(slug string) bool {
-	if slug == "" || slug == "_" {
-		return false
-	}
-	for _, c := range slug {
-		switch {
-		case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z', c >= '0' && c <= '9':
-		case c == '-' || c == '.' || c == '_' || c == '~':
-		default:
-			return false
-		}
-	}
-	return true
+	return slugRe.MatchString(slug) && slug != "_"
 }
 
 // validTargetURL reports whether the target is an absolute http(s) URL.

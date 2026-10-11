@@ -19,6 +19,7 @@ import (
 )
 
 func startCmd() *cli.Command {
+	var flagHost string
 	var flagPort uint16
 	var flagDatabase string
 
@@ -26,9 +27,18 @@ func startCmd() *cli.Command {
 		Name:  "start",
 		Usage: "Start golink server",
 		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "host",
+				Usage:       "host to listen on",
+				Value:       "127.0.0.1",
+				Sources:     cli.EnvVars("HOST"),
+				Destination: &flagHost,
+			},
 			&cli.Uint16Flag{
 				Name:        "port",
+				Usage:       "port to listen on",
 				Value:       8080,
+				Sources:     cli.EnvVars("PORT"),
 				Destination: &flagPort,
 			},
 			&cli.StringFlag{
@@ -50,7 +60,7 @@ func startCmd() *cli.Command {
 			log := clog.FromContext(ctx)
 			log.Info("database pool ready")
 
-			addr := net.JoinHostPort("127.0.0.1", strconv.FormatUint(uint64(flagPort), 10))
+			addr := net.JoinHostPort(flagHost, strconv.FormatUint(uint64(flagPort), 10))
 			ln, err := net.Listen("tcp", addr)
 			if err != nil {
 				return fmt.Errorf("listening on %s: %w", addr, err)
