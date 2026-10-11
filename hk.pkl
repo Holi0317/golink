@@ -27,6 +27,9 @@ steps = new Mapping {
         fix = "mise run gen:templ"
         stage = List("www/*.templ", "www/*_templ.go")
     }
+    // Lint GitHub Actions workflows with hk's builtin actionlint (check-only:
+    // .github/workflows/*.yml|yaml).
+    ["actionlint"] = Builtins.actionlint
     // Format and lint after codegen so regenerated files are covered too.
     ["go_fmt"] = (Builtins.go_fmt) {
         depends = List("sqlc_gen", "templ_gen")
