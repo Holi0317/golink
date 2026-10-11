@@ -11,7 +11,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/holi0317/golink/server/db"
+	"github.com/holi0317/golink/db"
 )
 
 // testPool opens a pool against the database named by DATABASE_URL; the test

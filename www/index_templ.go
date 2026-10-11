@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/holi0317/golink/server/db"
+	"github.com/holi0317/golink/db"
 )
 
 // Index lists every link with its slug and target URL, and carries the

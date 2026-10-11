@@ -9,7 +9,7 @@ import "github.com/a-h/templ"
 import templruntime "github.com/a-h/templ/runtime"
 
 import (
-	"github.com/holi0317/golink/server/db"
+	"github.com/holi0317/golink/db"
 )
 
 // Edit renders the form to change a link's target URL. The slug itself is

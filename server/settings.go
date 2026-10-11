@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
-	"github.com/holi0317/golink/server/db"
+	"github.com/holi0317/golink/db"
 	"github.com/holi0317/golink/www"
 )
 

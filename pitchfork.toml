@@ -27,9 +27,8 @@ ready_output = "golink listening"
 # Changed Go sources trigger a rebuild + full restart, debounced by the
 # supervisor. Keep patterns off build output and .git.
 watch = [
-  "main.go",
-  "cmd/**/*.go",
-  "server/**/*.go",
+  "**/*.go",
+  "**/*.templ",
   "go.mod",
   "go.sum",
   "mise.toml",

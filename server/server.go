@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/holi0317/golink/server/db"
+	"github.com/holi0317/golink/db"
 )
 
 // Middleware wraps an http.Handler with cross-cutting behavior.
