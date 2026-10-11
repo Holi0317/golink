@@ -1,8 +1,12 @@
 # CI for golink (golink-djs).
 #
 # Lint/test run on every push to main and every PR. Images are built with ko
-# (ko.yaml) and pushed to GHCR only on main pushes. Tool versions for
-# golangci-lint live in mise.toml; keep the action's `version` in sync.
+# (ko.yaml) and pushed to GHCR only on main pushes. All tools — including Go —
+# come from mise (mise.toml/mise.lock), so CI matches local dev exactly.
+#
+# Every action is pinned to the commit SHA of its latest release (golink-dt9);
+# the release tag is noted in a comment. Bump by re-resolving the tag's SHA:
+#   gh api repos/<owner>/<repo>/commits/<tag> --jq .sha
 name: CI
 
 on:
@@ -17,21 +21,33 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
+      # jdx/mise-action v5.1.1; mise's own install cache is on by default.
+      - uses: jdx/mise-action@2d8d4cafcbd33be2ea37d2b6f5ad595363d1f1ca
 
-      - uses: golangci/golangci-lint-action@v9
+      # Go dependency (module) cache, keyed on go.sum (actions/cache v6.1.0).
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
         with:
-          # Keep in sync with mise.toml [tools].golangci-lint.
-          version: 2.14.0
+          path: ~/go/pkg/mod
+          key: go-deps-${{ runner.os }}-${{ hashFiles('go.sum') }}
+          restore-keys: go-deps-${{ runner.os }}-
+
+      # Go compile cache + golangci-lint cache, keyed on deps + tool set.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/.cache/golangci-lint
+          key: go-build-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.toml') }}-${{ github.sha }}
+          restore-keys: |
+            go-build-${{ runner.os }}-${{ hashFiles('go.sum', 'mise.toml') }}-
+            go-build-${{ runner.os }}-
 
       - run: go test ./...
 
-      - name: Install codegen tools (templ, sqlc)
-        uses: jdx/mise-action@v5
+      - run: golangci-lint run
 
       - name: Generated code is fresh (templ, sqlc)
         run: |
@@ -48,15 +64,18 @@ jobs:
       contents: read
       packages: write
     steps:
-      - uses: actions/checkout@v5
+      # actions/checkout v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
-      - uses: docker/login-action@v3
+      # docker/login-action v4.6.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: ko-build/setup-ko@v0.10
+      # ko-build/setup-ko v0.10
+      - uses: ko-build/setup-ko@61b4d1d396f5b2e7d6bb6fefdce3dc38d1a13445
 
       - name: ko build
         env:
