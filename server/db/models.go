@@ -9,10 +9,11 @@ import (
 )
 
 type Link struct {
-	ID        int32
-	TargetUrl string
-	CreatedBy string
-	CreatedAt time.Time
-	UpdatedAt time.Time
-	Slug      string
+	ID         int32
+	TargetUrl  string
+	CreatedBy  string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	Slug       string
+	DefaultUrl string
 }

@@ -10,19 +10,25 @@ import (
 )
 
 const createLink = `-- name: CreateLink :one
-insert into links (slug, target_url, created_by)
-values ($1, $2, $3)
-returning id, target_url, created_by, created_at, updated_at, slug
+insert into links (slug, target_url, default_url, created_by)
+values ($1, $2, $3, $4)
+returning id, target_url, created_by, created_at, updated_at, slug, default_url
 `
 
 type CreateLinkParams struct {
-	Slug      string
-	TargetUrl string
-	CreatedBy string
+	Slug       string
+	TargetUrl  string
+	DefaultUrl string
+	CreatedBy  string
 }
 
 func (q *Queries) CreateLink(ctx context.Context, arg CreateLinkParams) (Link, error) {
-	row := q.db.QueryRow(ctx, createLink, arg.Slug, arg.TargetUrl, arg.CreatedBy)
+	row := q.db.QueryRow(ctx, createLink,
+		arg.Slug,
+		arg.TargetUrl,
+		arg.DefaultUrl,
+		arg.CreatedBy,
+	)
 	var i Link
 	err := row.Scan(
 		&i.ID,
@@ -31,6 +37,7 @@ func (q *Queries) CreateLink(ctx context.Context, arg CreateLinkParams) (Link, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Slug,
+		&i.DefaultUrl,
 	)
 	return i, err
 }
@@ -49,7 +56,7 @@ func (q *Queries) DeleteLink(ctx context.Context, id int32) (int64, error) {
 
 const getLink = `-- name: GetLink :one
 
-select id, target_url, created_by, created_at, updated_at, slug from links where slug = $1
+select id, target_url, created_by, created_at, updated_at, slug, default_url from links where slug = $1
 `
 
 // Queries for the links table. Generated Go code lives in server/db
@@ -67,12 +74,13 @@ func (q *Queries) GetLink(ctx context.Context, slug string) (Link, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Slug,
+		&i.DefaultUrl,
 	)
 	return i, err
 }
 
 const getLinkByID = `-- name: GetLinkByID :one
-select id, target_url, created_by, created_at, updated_at, slug from links where id = $1
+select id, target_url, created_by, created_at, updated_at, slug, default_url from links where id = $1
 `
 
 func (q *Queries) GetLinkByID(ctx context.Context, id int32) (Link, error) {
@@ -85,12 +93,13 @@ func (q *Queries) GetLinkByID(ctx context.Context, id int32) (Link, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Slug,
+		&i.DefaultUrl,
 	)
 	return i, err
 }
 
 const listLinks = `-- name: ListLinks :many
-select id, target_url, created_by, created_at, updated_at, slug from links order by slug
+select id, target_url, created_by, created_at, updated_at, slug, default_url from links order by slug
 `
 
 func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
@@ -109,6 +118,7 @@ func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Slug,
+			&i.DefaultUrl,
 		); err != nil {
 			return nil, err
 		}
@@ -122,18 +132,19 @@ func (q *Queries) ListLinks(ctx context.Context) ([]Link, error) {
 
 const updateLink = `-- name: UpdateLink :one
 update links
-set target_url = $2, updated_at = now()
+set target_url = $2, default_url = $3, updated_at = now()
 where id = $1
-returning id, target_url, created_by, created_at, updated_at, slug
+returning id, target_url, created_by, created_at, updated_at, slug, default_url
 `
 
 type UpdateLinkParams struct {
-	ID        int32
-	TargetUrl string
+	ID         int32
+	TargetUrl  string
+	DefaultUrl string
 }
 
 func (q *Queries) UpdateLink(ctx context.Context, arg UpdateLinkParams) (Link, error) {
-	row := q.db.QueryRow(ctx, updateLink, arg.ID, arg.TargetUrl)
+	row := q.db.QueryRow(ctx, updateLink, arg.ID, arg.TargetUrl, arg.DefaultUrl)
 	var i Link
 	err := row.Scan(
 		&i.ID,
@@ -142,6 +153,7 @@ func (q *Queries) UpdateLink(ctx context.Context, arg UpdateLinkParams) (Link, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Slug,
+		&i.DefaultUrl,
 	)
 	return i, err
 }

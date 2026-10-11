@@ -17,6 +17,10 @@ templ indexContent(links []db.Link) {
 		<input id="slug" name="slug" required placeholder="greet" pattern="[^/]+"/>
 		<label for="target_url">Target URL</label>
 		<input id="target_url" name="target_url" type="url" required placeholder="https://example.com/hello"/>
+		<p>{ templateHint }</p>
+		<label for="default_url">Default location (template links only)</label>
+		<input id="default_url" name="default_url" type="url" placeholder="https://corp.atlassian.com/board"/>
+		<p>{ defaultHint }</p>
 		<button type="submit">Create</button>
 	</form>
 

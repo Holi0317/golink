@@ -15,6 +15,10 @@ templ editContent(link db.Link) {
 	<form method="post" action={ editURL(link.ID) }>
 		<label for="target_url">Target URL</label>
 		<input id="target_url" name="target_url" type="url" value={ link.TargetUrl } required/>
+		<p>{ templateHint }</p>
+		<label for="default_url">Default location (template links only)</label>
+		<input id="default_url" name="default_url" type="url" value={ link.DefaultUrl }/>
+		<p>{ defaultHint }</p>
 		<button type="submit">Save</button>
 	</form>
 	<p>

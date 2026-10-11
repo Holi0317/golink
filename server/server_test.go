@@ -154,3 +154,138 @@ func TestNewComposesMiddlewareInOrder(t *testing.T) {
 		t.Fatalf("middleware order: got %v, want [outer inner]", order)
 	}
 }
+
+// seedTemplateLink inserts a template link row (target with {N} fragment
+// references, optional default location) and schedules its removal. It
+// returns the created row for out-of-band inspection.
+func seedTemplateLink(t *testing.T, pool *pgxpool.Pool, slug, targetURL, defaultURL string) db.Link {
+	t.Helper()
+
+	queries := db.New(pool)
+	link, err := queries.CreateLink(context.Background(), db.CreateLinkParams{
+		Slug:       slug,
+		TargetUrl:  targetURL,
+		DefaultUrl: defaultURL,
+		CreatedBy:  "server_test",
+	})
+	if err != nil {
+		t.Fatalf("seeding template link %q: %v", slug, err)
+	}
+	t.Cleanup(func() { _, _ = queries.DeleteLink(context.Background(), link.ID) })
+	return link
+}
+
+// A template link substitutes {0}, {1}, ... with the path fragments after
+// the slug.
+func TestTemplateLinkSubstitutesFragments(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "jira", "https://corp.atlassian.com/issues/{0}-{1}", "https://corp.atlassian.com/board")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/jira/board/123", nil)
+	New(pool).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusFound {
+		t.Fatalf("GET /jira/board/123: got status %d, want %d", rec.Code, http.StatusFound)
+	}
+	if got, want := rec.Header().Get("Location"), "https://corp.atlassian.com/issues/board-123"; got != want {
+		t.Errorf("Location: got %q, want %q", got, want)
+	}
+}
+
+// Substituted fragments are re-escaped, so decoded characters from the wire
+// stay inside one path segment of the destination.
+func TestTemplateLinkEscapesFragments(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "esc", "https://example.com/p/{0}", "")
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/esc/x%20y", nil)
+	New(pool).ServeHTTP(rec, req)
+
+	if got, want := rec.Header().Get("Location"), "https://example.com/p/x%20y"; got != want {
+		t.Errorf("Location: got %q, want %q", got, want)
+	}
+}
+
+// A template link with a default location redirects the bare slug (and the
+// trailing-slash form) to the default.
+func TestTemplateLinkDefaultLocation(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "jira", "https://corp.atlassian.com/issues/{0}", "https://corp.atlassian.com/board")
+
+	for _, path := range []string{"/jira", "/jira/"} {
+		t.Run(path, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, path, nil)
+			New(pool).ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusFound {
+				t.Fatalf("GET %s: got status %d, want %d", path, rec.Code, http.StatusFound)
+			}
+			if got, want := rec.Header().Get("Location"), "https://corp.atlassian.com/board"; got != want {
+				t.Errorf("Location: got %q, want %q", got, want)
+			}
+		})
+	}
+}
+
+// Fragment-count mismatches answer 404 with an explanatory message instead
+// of guessing.
+
+func TestTemplateLinkTooFewFragments(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "jira", "https://corp.atlassian.com/issues/{0}-{1}", "")
+
+	rec := httptest.NewRecorder()
+	New(pool).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/jira/board", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("GET /jira/board: got status %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	if !strings.Contains(rec.Body.String(), "2 path fragments") {
+		t.Errorf("miss page does not explain the fragment count: %q", rec.Body.String())
+	}
+}
+
+func TestTemplateLinkExtraFragments(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "jira", "https://corp.atlassian.com/issues/{0}-{1}", "")
+
+	rec := httptest.NewRecorder()
+	New(pool).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/jira/board/123/extra", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("GET /jira/board/123/extra: got status %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+// A template link without a default location 404s on the bare slug.
+func TestTemplateLinkBareSlugWithoutDefault(t *testing.T) {
+	pool := testPool(t)
+	seedTemplateLink(t, pool, "jira", "https://corp.atlassian.com/issues/{0}-{1}", "")
+
+	rec := httptest.NewRecorder()
+	New(pool).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/jira", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("GET /jira: got status %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+// A static link with extra path fragments 404s instead of redirecting with
+// the extra path discarded or appended.
+func TestStaticLinkRejectsExtraPath(t *testing.T) {
+	pool := testPool(t)
+	seedLink(t, pool, "wiki", "https://example.com/wiki")
+
+	rec := httptest.NewRecorder()
+	New(pool).ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/wiki/en/typo", nil))
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("GET /wiki/en/typo: got status %d, want %d", rec.Code, http.StatusNotFound)
+	}
+	if !strings.Contains(rec.Body.String(), "static link") {
+		t.Errorf("miss page does not explain the static slug: %q", rec.Body.String())
+	}
+}

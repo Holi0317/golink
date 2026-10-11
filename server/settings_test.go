@@ -211,3 +211,63 @@ func TestSettingsUnknownPage(t *testing.T) {
 		t.Errorf("GET /_/nonsense: got status %d, want %d", rec.Code, http.StatusNotFound)
 	}
 }
+
+// Template targets are accepted and stored with their default location.
+func TestSettingsCreateTemplateLink(t *testing.T) {
+	pool := testPool(t)
+
+	rec := settingsPOST(t, pool, "/_/", url.Values{
+		"slug":        {"jira"},
+		"target_url":  {"https://corp.atlassian.com/issues/{0}-{1}"},
+		"default_url": {"https://corp.atlassian.com/board"},
+	})
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("POST /_/: got status %d, want %d", rec.Code, http.StatusSeeOther)
+	}
+	created, err := db.New(pool).GetLink(context.Background(), "jira")
+	if err != nil {
+		t.Fatalf("created link missing from database: %v", err)
+	}
+	t.Cleanup(deleteRow(pool, created.ID))
+	if created.TargetUrl != "https://corp.atlassian.com/issues/{0}-{1}" || created.DefaultUrl != "https://corp.atlassian.com/board" {
+		t.Errorf("stored %q with default %q", created.TargetUrl, created.DefaultUrl)
+	}
+}
+
+// The create form rejects invalid template syntax and misplaced default
+// locations instead of storing them.
+func TestSettingsCreateRejectsBadTemplates(t *testing.T) {
+	pool := testPool(t)
+
+	cases := []struct {
+		name        string
+		fields      url.Values
+		wantMessage string
+	}{
+		{name: "stray braces in target", fields: url.Values{
+			"slug": {"jira"}, "target_url": {"https://example.com/{1 or something}"},
+		}, wantMessage: "braces are invalid"},
+		{name: "named placeholder instead of positional", fields: url.Values{
+			"slug": {"jira"}, "target_url": {"https://example.com/{board}"},
+		}, wantMessage: "braces are invalid"},
+		{name: "default on a static link", fields: url.Values{
+			"slug": {"wiki"}, "target_url": {"https://example.com/wiki"},
+			"default_url": {"https://example.com"},
+		}, wantMessage: "template links"},
+		{name: "default takes placeholders", fields: url.Values{
+			"slug": {"jira"}, "target_url": {"https://example.com/{0}"},
+			"default_url": {"https://example.com/{1}"},
+		}, wantMessage: "does not take"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			rec := settingsPOST(t, pool, "/_/", c.fields)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("POST /_/: got status %d, want %d", rec.Code, http.StatusBadRequest)
+			}
+			if !strings.Contains(rec.Body.String(), c.wantMessage) {
+				t.Errorf("reject page: body misses %q: %q", c.wantMessage, rec.Body.String())
+			}
+		})
+	}
+}

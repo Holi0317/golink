@@ -14,13 +14,13 @@ select * from links where id = $1;
 select * from links order by slug;
 
 -- name: CreateLink :one
-insert into links (slug, target_url, created_by)
-values ($1, $2, $3)
+insert into links (slug, target_url, default_url, created_by)
+values ($1, $2, $3, $4)
 returning *;
 
 -- name: UpdateLink :one
 update links
-set target_url = $2, updated_at = now()
+set target_url = $2, default_url = $3, updated_at = now()
 where id = $1
 returning *;
 
